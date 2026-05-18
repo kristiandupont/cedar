@@ -1,0 +1,55 @@
+{
+  "name": "cedar",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./backend": "./src/backend/index.ts",
+    "./frontend": "./src/frontend/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./kanel": "./kanel/index.js"
+  },
+  "dependencies": {
+    "@koa/cors": "^5.0.0",
+    "@koa/router": "^15.0.0",
+    "@trpc/client": "^10.45.2",
+    "@trpc/react-query": "^10.45.2",
+    "@trpc/server": "^10.45.2",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/koa": "^2.14.0",
+    "@types/koa-logger": "^3.1.2",
+    "@types/request-ip": "^0.0.41",
+    "jsonwebtoken": "^9.0.0",
+    "knex": "^3.0.0",
+    "koa": "^3.0.0",
+    "koa-easy-ws": "^2.1.0",
+    "koa-helmet": "^7.0.0",
+    "koa-logger": "^3.2.1",
+    "narrow-types": "^1.2.0",
+    "react-geiger": "^1.0.2",
+    "request-ip": "^3.3.0",
+    "superjson": "^2.0.0",
+    "trpc-koa-adapter": "^1.1.2",
+    "workspace-sync": "github:kristiandupont/workspace-sync#main"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": ">=4",
+    "react": ">=18",
+    "zod": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "kanel": { "optional": true },
+    "kanel-knex": { "optional": true },
+    "kanel-seeder": { "optional": true },
+    "kanel-zod": { "optional": true }
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^4.36.1",
+    "kanel": "^4.0.0",
+    "kanel-knex": "^4.0.0",
+    "kanel-seeder": "^4.0.0",
+    "kanel-zod": "^4.0.0",
+    "react": "^18.3.1",
+    "typescript": "^5.9.3",
+    "zod": "^3.21.4"
+  }
+}
