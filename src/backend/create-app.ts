@@ -6,7 +6,6 @@ import Router from "@koa/router";
 import type { AnyRouter } from "@trpc/server";
 import Koa from "koa";
 import websocket from "koa-easy-ws";
-import type koaHelmet from "koa-helmet";
 import helmet from "koa-helmet";
 import koaLogger from "koa-logger";
 import { createKoaMiddleware } from "trpc-koa-adapter";
@@ -14,23 +13,32 @@ import type { CreateTrpcKoaContextOptions } from "trpc-koa-adapter";
 
 import { dbMiddleware } from "./db";
 
-type HelmetConfig = Parameters<typeof koaHelmet>[0];
+export type { Options as CorsOptions } from "@koa/cors";
+
+const defaultHelmetConfig = {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    },
+  },
+};
 
 export function createApp(options: {
-  helmetConfig: HelmetConfig;
-  corsConfig: CorsOptions;
+  corsConfig?: CorsOptions;
   appApi: AnyRouter;
   createContext: (opts: CreateTrpcKoaContextOptions) => Promise<unknown>;
   wsHandler?: Koa.Middleware;
   simulateLatency?: number;
 }): Koa {
-  const { helmetConfig, corsConfig, appApi, createContext, wsHandler, simulateLatency } =
+  const { corsConfig = {}, appApi, createContext, wsHandler, simulateLatency } =
     options;
 
   const app = new Koa();
 
   app.use(websocket());
-  app.use(helmet(helmetConfig));
+  app.use(helmet(defaultHelmetConfig));
   app.use(cors(corsConfig));
   app.use(dbMiddleware);
   app.use(koaLogger());
