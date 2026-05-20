@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import type { TRPC_ERROR_CODE_KEY } from "@trpc/server/dist/rpc";
+
+type TRPC_ERROR_CODE_KEY = ConstructorParameters<typeof TRPCError>[0]["code"];
 
 function trpcAssert(
   condition: unknown,

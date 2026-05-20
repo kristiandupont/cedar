@@ -14,6 +14,7 @@ const defaultQueryClientOptions = {
 };
 
 export function createCoreProviders(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   trpc: { Provider: ComponentType<any> },
   trpcClient: unknown,
   geigerEnabled = false,
