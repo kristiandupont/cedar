@@ -3,6 +3,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Knex } from "knex";
 import knex from "knex";
 import type * as Koa from "koa";
+import { types } from "pg";
+import { parse, Range, serialize } from "postgres-range";
+import SuperJSON from "superjson";
 
 type DbStore = {
   db: Knex;
@@ -13,8 +16,32 @@ const dbAsyncLocalStorage = new AsyncLocalStorage<DbStore>();
 
 let _globalDb: Knex | null = null;
 
+function setupRangeTypes(): void {
+  const TSRANGE_OID = 3908;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  types.setTypeParser(TSRANGE_OID as any, (v) => parse(v, (v) => new Date(v)));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (Range.prototype as any).toPostgres = function (
+    prepareValue: (v: Date) => string,
+  ): string {
+    return serialize(this as Range<Date>, prepareValue);
+  };
+
+  SuperJSON.registerCustom<Range<Date>, string>(
+    {
+      isApplicable: (v): v is Range<Date> => v instanceof Range,
+      serialize: (v) => serialize(v, (v) => v.toISOString()),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      deserialize: (v) => parse(v as any, (v) => new Date(v)),
+    },
+    "Range<Date>",
+  );
+}
+
 export function initDb(config: Knex.Config): void {
   _globalDb = knex(config);
+  setupRangeTypes();
 }
 
 const getDb = (): Knex => {
