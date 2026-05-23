@@ -67,3 +67,5 @@ Every folder, regardless of depth, follows the same rules.
 ### Testing Philosophy
 
 Prioritize _semantic coverage_ (testing behavior) over line coverage. **Focus on critical paths and refactoring safety.** Tests should enable safe refactoring; skip trivial paths (e.g., simple getters/setters) that add no value. The pattern is to create a file with the same name + `.test.ts(x)` next to the file being tested.
+
+For integration tests covering the interaction between multiple files within a namespace, use a `{concept}.test.ts` at the namespace folder level. If that file exceeds ~500 lines, apply the same file→folder rule: refactor to a `{concept}.test/` folder with named sub-files inside.
