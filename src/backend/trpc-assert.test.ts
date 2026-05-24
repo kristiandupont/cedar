@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { describe, expect, it } from "vitest";
 
-import trpcAssert from "../trpc-assert";
+import trpcAssert from "./trpc-assert";
 
 describe("trpcAssert", () => {
   it("does not throw when condition is truthy", () => {
@@ -14,7 +14,9 @@ describe("trpcAssert", () => {
   it("throws TRPCError when condition is falsy", () => {
     expect(() => trpcAssert(false, "something went wrong")).toThrow(TRPCError);
     expect(() => trpcAssert(null, "something went wrong")).toThrow(TRPCError);
-    expect(() => trpcAssert(undefined, "something went wrong")).toThrow(TRPCError);
+    expect(() => trpcAssert(undefined, "something went wrong")).toThrow(
+      TRPCError,
+    );
     expect(() => trpcAssert(0, "something went wrong")).toThrow(TRPCError);
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createSessionTokenHandler } from "../jwt";
+import { createSessionTokenHandler } from "./jwt";
 
 const secret = "test-secret-key";
 const getSecret = async () => secret;
@@ -45,7 +45,9 @@ describe("createSessionTokenHandler", () => {
     const token = await generateSessionToken(1, undefined);
     const tampered = token.slice(0, -5) + "XXXXX";
 
-    await expect(decodeAndVerifySessionToken(tampered, undefined)).rejects.toThrow();
+    await expect(
+      decodeAndVerifySessionToken(tampered, undefined),
+    ).rejects.toThrow();
   });
 
   it("returns undefined for admin user with mismatched IP", async () => {

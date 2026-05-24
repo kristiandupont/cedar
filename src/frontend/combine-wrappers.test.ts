@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import combineWrappers, { wrp } from "../combine-wrappers";
+import combineWrappers, { wrp } from "./combine-wrappers";
 
 describe("combineWrappers", () => {
   it("returns a function component with the given displayName", () => {
-    const Component = ({ children }: { children: React.ReactNode }) => children as any;
+    const Component = ({ children }: { children: React.ReactNode }) =>
+      children as any;
     const combined = combineWrappers("MyProviders", [wrp(Component as any)]);
 
     expect(typeof combined).toBe("function");

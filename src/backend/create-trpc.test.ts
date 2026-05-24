@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { buildContext } from "../create-trpc";
+import { buildContext } from "./create-trpc";
 
 function makeReq(overrides: Record<string, unknown> = {}) {
   return {
@@ -36,7 +36,10 @@ describe("buildContext", () => {
     });
 
     expect(ctx.user).toEqual(fakeUser);
-    expect(decodeSessionToken).toHaveBeenCalledWith("my-token", expect.anything());
+    expect(decodeSessionToken).toHaveBeenCalledWith(
+      "my-token",
+      expect.anything(),
+    );
   });
 
   it("returns undefined user when token decode returns undefined", async () => {
