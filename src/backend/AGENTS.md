@@ -12,3 +12,4 @@
 **Notes**:
 
 - Every request runs inside a Knex transaction (committed on success, rolled back on error). This means mutations don't need to manage transactions themselves.
+- `dbAsyncLocalStorage` in `db.ts` is stored on `globalThis.__cedarDbStorage`. This ensures the CJS `backend.cjs` bundle and the ESM `testing.mjs` bundle share the same storage instance even though tsdown compiles them separately and each gets its own bundled copy of `db.ts`.

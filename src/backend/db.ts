@@ -12,7 +12,15 @@ type DbStore = {
   trx?: Knex.Transaction;
 };
 
-const dbAsyncLocalStorage = new AsyncLocalStorage<DbStore>();
+// Use a global so that multiple bundle copies of this module (e.g. testing.mjs
+// and backend.cjs in the same process) share the same AsyncLocalStorage
+// instance — otherwise transactions set by one copy are invisible to the other.
+declare global {
+  // eslint-disable-next-line no-var
+  var __cedarDbStorage: AsyncLocalStorage<DbStore> | undefined;
+}
+globalThis.__cedarDbStorage ??= new AsyncLocalStorage<DbStore>();
+const dbAsyncLocalStorage = globalThis.__cedarDbStorage;
 
 let _globalDb: Knex | null = null;
 

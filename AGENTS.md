@@ -2,9 +2,13 @@
 
 Cedar is the shared framework library used by Beatpoints and Moneybutler. It extracts common Koa/tRPC/DB/auth scaffolding so both apps can share it without duplication.
 
+## Build
+
+Cedar compiles to `dist/` via tsdown before it is consumed. After a fresh checkout: `npm install && npm run build` in `cedar/`. For development: `npm run build:watch`. The compiled `dist/` is committed so GitHub installs work in CI without a build step. See `README.md` for full details.
+
 ## General Architecture
 
-Cedar is a TypeScript library with multiple named export paths, consumed via `cedar/backend`, `cedar/frontend`, `cedar/auth`, `cedar/kanel`, and `cedar/testing`. Each path maps to a subfolder under `src/`.
+Cedar is a TypeScript library with multiple named export paths, consumed via `cedar/backend`, `cedar/frontend`, `cedar/auth`, `cedar/kanel`, and `cedar/testing`. Each path maps to a subfolder under `src/`. All entries compile to CJS (`.cjs`) except `cedar/testing`, which is ESM (`.mjs`) because vitest 3+ cannot be `require()`d from CJS.
 
 **Export namespaces:**
 
