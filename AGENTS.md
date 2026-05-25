@@ -46,11 +46,13 @@ Every folder, regardless of depth, follows the same rules.
 - Co-locate by feature/concept, not by type (e.g., not "all hooks in one folder").
 - When a file is reused across namespaces, move it to the root of `src/`.
 - There are a few exceptions:
-  - Namespaces (e.g., `backend/`, `frontend/`) are organised by consumer, not by feature.
+  - Namespaces (e.g., `backend/`, `frontend/`) are organized by consumer, not by feature.
   - `kanel/` lives outside `src/` due to tooling requirements.
 - Consider the _Law of Demeter_ for imports: avoid deep relative paths. If needed, refactor to flatten the hierarchy.
 
 ### AGENTS.md Files
+
+**Goal:** The fractal structure aims for cognitive encapsulation — any sub-tree should be understandable in isolation. AGENTS.md files serve this goal the way code comments do: they surface what naming and structure alone don't convey. Namespace folders (`backend/`, `frontend/`, etc.) are intentional exceptions — they are organized by consumer and are inherently cross-cutting.
 
 **Location:** Every `src/` folder and subfolder should include an `AGENTS.md`.
 
@@ -65,7 +67,6 @@ Every folder, regardless of depth, follows the same rules.
 
 - **Brevity**: Prioritize succinctness for LLM token efficiency. **Omit details derivable from conventions, naming, or folder structure.**
 - **Prioritize the Notes section** for non-obvious context.
-- **Usage**: Agents/developers **must** read this file before modifying the folder's contents.
 - **Updates**: Required when adding/removing files, changing responsibilities, or creating subfolders (also update parent's `AGENTS.md`).
 
 ### Testing Philosophy
