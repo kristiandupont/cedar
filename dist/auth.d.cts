@@ -7,8 +7,9 @@ declare function createSessionTokenHandler<TUser, TUserId extends string | numbe
   getSecret: () => Promise<string>;
   lookupUser: (memberId: TUserId) => Promise<TUser | undefined>;
   isAdmin?: (user: TUser) => boolean;
+  getTokenVersion?: (user: TUser) => number;
 }): {
-  generateSessionToken: (memberId: TUserId, clientIp: IpString | undefined) => Promise<string>;
+  generateSessionToken: (memberId: TUserId, clientIp: IpString | undefined, tokenVersion?: number) => Promise<string>;
   decodeAndVerifySessionToken: (token: string, ipAddress: IpString | undefined) => Promise<TUser | undefined>;
 };
 //#endregion

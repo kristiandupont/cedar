@@ -7,18 +7,21 @@ let node_crypto = require("node:crypto");
 node_crypto = require_chunk.__toESM(node_crypto);
 //#region src/auth/jwt.ts
 function createSessionTokenHandler(options) {
-	async function generateSessionToken(memberId, clientIp) {
+	async function generateSessionToken(memberId, clientIp, tokenVersion) {
 		const secret = await options.getSecret();
 		return jsonwebtoken.sign({
 			memberId,
-			clientIp
+			clientIp,
+			tokenVersion
 		}, secret, options.jwtOptions);
 	}
 	async function decodeAndVerifySessionToken(token, ipAddress) {
 		const secret = await options.getSecret();
-		const { memberId, clientIp } = jsonwebtoken.verify(token, secret);
+		const { memberId, clientIp, tokenVersion } = jsonwebtoken.verify(token, secret);
 		const user = await options.lookupUser(memberId);
-		if (user && options.isAdmin?.(user) && ipAddress && clientIp !== ipAddress) return;
+		if (!user) return void 0;
+		if (options.getTokenVersion && tokenVersion !== options.getTokenVersion(user)) return;
+		if (options.isAdmin?.(user) && ipAddress && clientIp !== ipAddress) return;
 		return user;
 	}
 	return {

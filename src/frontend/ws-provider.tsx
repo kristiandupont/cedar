@@ -20,12 +20,12 @@ export const WsProvider: FC<{ children: ReactNode; wsUrl: string }> = ({
       throw new Error("No session token");
     }
 
-    const p = new URLSearchParams({ token: sessionToken });
-    const fullUrl = `${wsUrl}?${p.toString()}`;
-
     const tryConnect = () => {
-      const webSocket = new WebSocket(fullUrl);
+      const webSocket = new WebSocket(wsUrl);
       wsRef.current = webSocket;
+      webSocket.addEventListener("open", () => {
+        webSocket.send(sessionToken);
+      });
       webSocket.addEventListener("message", (event) => {
         target.dispatchEvent(new MessageEvent("message", { data: event.data }));
       });

@@ -103,10 +103,12 @@ const WsProvider = ({ children, wsUrl }) => {
 	const sessionToken = localStorage.getItem("sessionToken");
 	(0, react.useEffect)(() => {
 		if (!sessionToken) throw new Error("No session token");
-		const fullUrl = `${wsUrl}?${new URLSearchParams({ token: sessionToken }).toString()}`;
 		const tryConnect = () => {
-			const webSocket = new WebSocket(fullUrl);
+			const webSocket = new WebSocket(wsUrl);
 			wsRef.current = webSocket;
+			webSocket.addEventListener("open", () => {
+				webSocket.send(sessionToken);
+			});
 			webSocket.addEventListener("message", (event) => {
 				target.dispatchEvent(new MessageEvent("message", { data: event.data }));
 			});
