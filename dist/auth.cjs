@@ -17,7 +17,14 @@ function createSessionTokenHandler(options) {
 	}
 	async function decodeAndVerifySessionToken(token, ipAddress) {
 		const secret = await options.getSecret();
-		const { memberId, clientIp, tokenVersion } = jsonwebtoken.verify(token, secret);
+		let decoded;
+		try {
+			decoded = jsonwebtoken.verify(token, secret);
+		} catch (error) {
+			if (error instanceof jsonwebtoken.JsonWebTokenError) return;
+			throw error;
+		}
+		const { memberId, clientIp, tokenVersion } = decoded;
 		const user = await options.lookupUser(memberId);
 		if (!user) return void 0;
 		if (options.getTokenVersion && tokenVersion !== options.getTokenVersion(user)) return;

@@ -39,15 +39,37 @@ describe("createSessionTokenHandler", () => {
     expect(user).toBeUndefined();
   });
 
-  it("throws on a tampered token", async () => {
+  it("returns undefined for a tampered token", async () => {
     const { generateSessionToken, decodeAndVerifySessionToken } = makeHandler();
 
     const token = await generateSessionToken(1, undefined);
     const tampered = token.slice(0, -5) + "XXXXX";
 
-    await expect(
-      decodeAndVerifySessionToken(tampered, undefined),
-    ).rejects.toThrow();
+    const user = await decodeAndVerifySessionToken(tampered, undefined);
+
+    expect(user).toBeUndefined();
+  });
+
+  it("returns undefined for an expired token", async () => {
+    const { generateSessionToken, decodeAndVerifySessionToken } =
+      createSessionTokenHandler<User, number>({
+        jwtOptions: { expiresIn: "-1s" },
+        getSecret,
+        lookupUser: async (id) => users[id],
+      });
+
+    const token = await generateSessionToken(1, undefined);
+    const user = await decodeAndVerifySessionToken(token, undefined);
+
+    expect(user).toBeUndefined();
+  });
+
+  it("returns undefined for a malformed token", async () => {
+    const { decodeAndVerifySessionToken } = makeHandler();
+
+    const user = await decodeAndVerifySessionToken("not-a-jwt", undefined);
+
+    expect(user).toBeUndefined();
   });
 
   it("returns undefined for admin user with mismatched IP", async () => {
