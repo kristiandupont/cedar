@@ -1,5 +1,5 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_chunk = require("./chunk-C2EiDwsr.cjs");
+const require_chunk = require("./chunk-CKQMccvm.cjs");
 let superjson = require("superjson");
 superjson = require_chunk.__toESM(superjson);
 let react_jsx_runtime = require("react/jsx-runtime");
@@ -97,6 +97,14 @@ function useMutationWithDelta(mutation, applyDelta) {
 //#endregion
 //#region src/frontend/ws-provider.tsx
 const target = new EventTarget();
+/**
+* The same `EventTarget` `useWs()` exposes, available at module scope so it can
+* be handed to `createWorkspaceProvider({ pokeTarget })` (which runs outside the
+* React tree). It emits the websocket's `message` events, plus an `open` event
+* on every (re)connect so consumers can catch up on changes missed while the
+* socket was down.
+*/
+const wsEventTarget = target;
 const wsContext = (0, react.createContext)({ target });
 const WsProvider = ({ children, wsUrl }) => {
 	const wsRef = (0, react.useRef)(void 0);
@@ -108,6 +116,7 @@ const WsProvider = ({ children, wsUrl }) => {
 			wsRef.current = webSocket;
 			webSocket.addEventListener("open", () => {
 				webSocket.send(sessionToken);
+				target.dispatchEvent(new Event("open"));
 			});
 			webSocket.addEventListener("message", (event) => {
 				target.dispatchEvent(new MessageEvent("message", { data: event.data }));
@@ -138,5 +147,6 @@ exports.useMutationWithDelta = useMutationWithDelta;
 exports.useWs = useWs;
 exports.workspaceVersionRef = workspace_sync.workspaceVersionRef;
 exports.wrp = wrp;
+exports.wsEventTarget = wsEventTarget;
 
 //# sourceMappingURL=frontend.cjs.map

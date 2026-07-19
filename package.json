@@ -7,6 +7,7 @@
     "./backend":    { "require": "./dist/backend.cjs",    "default": "./dist/backend.cjs",    "types": "./dist/backend.d.cts" },
     "./frontend":   { "require": "./dist/frontend.cjs",   "default": "./dist/frontend.cjs",   "types": "./dist/frontend.d.cts" },
     "./auth":       { "require": "./dist/auth.cjs",        "default": "./dist/auth.cjs",        "types": "./dist/auth.d.cts" },
+    "./eslint":     { "require": "./dist/eslint.cjs",      "default": "./dist/eslint.cjs",      "types": "./dist/eslint.d.cts" },
     "./testing":    { "import": "./dist/testing.mjs",      "default": "./dist/testing.mjs",      "types": "./dist/testing.d.mts" },
     "./testing/db": { "require": "./dist/testing/db.cjs", "default": "./dist/testing/db.cjs", "types": "./dist/testing/db.d.cts" },
     "./kanel":      "./kanel/index.js"
@@ -16,6 +17,7 @@
       "backend":    ["dist/backend.d.cts"],
       "frontend":   ["dist/frontend.d.cts"],
       "auth":       ["dist/auth.d.cts"],
+      "eslint":     ["dist/eslint.d.cts"],
       "testing":    ["dist/testing.d.mts"],
       "testing/db": ["dist/testing/db.d.cts"]
     }
@@ -43,6 +45,7 @@
     "koa-easy-ws": "^2.1.0",
     "koa-helmet": "^7.0.0",
     "koa-logger": "^3.2.1",
+    "pg-listen": "^1.7.0",
     "postgres-range": "^1.1.4",
     "react-geiger": "^1.0.2",
     "request-ip": "^3.3.0",

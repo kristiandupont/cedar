@@ -7,6 +7,10 @@ const neverBundle = [
   "koa",
   "narrow-types",
   "react",
+  // Postgres LISTEN/NOTIFY client (+ its `pg` driver) — native pg bindings must
+  // resolve from the app, not be bundled. Both apps already depend on these.
+  "pg-listen",
+  "pg",
   // tRPC — singleton; apps own these directly
   "@trpc/client",
   "@trpc/react-query",
@@ -25,6 +29,7 @@ export default defineConfig([
       backend: "src/backend/index.ts",
       frontend: "src/frontend/index.ts",
       auth: "src/auth/index.ts",
+      eslint: "src/eslint/index.ts",
       "testing/db": "src/testing/get-knex-for.ts",
     },
     format: ["cjs"],

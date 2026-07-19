@@ -5,8 +5,9 @@
 **Subfolders**:
 
 - `auth/` — `cedar/auth`: JWT session tokens, login token handlers.
-- `backend/` — `cedar/backend`: Koa app factory, tRPC context, Knex DB, `trpcAssert`.
+- `backend/` — `cedar/backend`: Koa app factory, tRPC context, Knex DB, `trpcAssert`, workspace poke helper + topic socket registry + DB listener.
 - `frontend/` — `cedar/frontend`: tRPC client factory, React core providers, WebSocket provider.
+- `eslint/` — `cedar/eslint`: optional, opt-in lint rules. Currently `require-workspace-poke` (flags Knex writes to workspace tables that skip both the mutation wrapper and `pokeWorkspace`). Pure AST, no cedar runtime.
 - `testing/` — `cedar/testing`: Vitest helpers for spinning up isolated test databases.
 
 **Notes**:

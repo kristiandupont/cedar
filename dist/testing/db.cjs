@@ -1,5 +1,5 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_chunk = require("../chunk-C2EiDwsr.cjs");
+const require_chunk = require("../chunk-CKQMccvm.cjs");
 let knex = require("knex");
 knex = require_chunk.__toESM(knex);
 //#region src/testing/get-knex-for.ts

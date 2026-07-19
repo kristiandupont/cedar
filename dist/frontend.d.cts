@@ -275,11 +275,19 @@ declare function useMutationWithDelta<TData, TError, TVariables, TContext>(mutat
 type WsContext = {
   target: EventTarget;
 };
+/**
+ * The same `EventTarget` `useWs()` exposes, available at module scope so it can
+ * be handed to `createWorkspaceProvider({ pokeTarget })` (which runs outside the
+ * React tree). It emits the websocket's `message` events, plus an `open` event
+ * on every (re)connect so consumers can catch up on changes missed while the
+ * socket was down.
+ */
+declare const wsEventTarget: EventTarget;
 declare const WsProvider: FC<{
   children: ReactNode;
   wsUrl: string;
 }>;
 declare const useWs: () => WsContext;
 //#endregion
-export { type WrapperItem, WsProvider, combineWrappers, createCoreProviders, createTrpcClients, useMutationWithDelta, useWs, workspaceVersionRef, wrp };
+export { type WrapperItem, WsProvider, combineWrappers, createCoreProviders, createTrpcClients, useMutationWithDelta, useWs, workspaceVersionRef, wrp, wsEventTarget };
 //# sourceMappingURL=frontend.d.cts.map
