@@ -21,9 +21,18 @@ async function buildHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+// The return type must be spelled out. `trpc`'s inferred type lives at
+// `@trpc/react-query/dist/createTRPCReact`, which the package's export map does
+// not expose, so declaration emit cannot name it and fails with TS2742. Naming
+// it via `ReturnType<typeof ...>` uses only the public exports, which stays
+// portable — and does not depend on `baseUrl`, which TypeScript 7 removes.
 export function createTrpcClients<TAppApi extends AnyRouter>(options: {
   url: string;
-}) {
+}): {
+  trpc: ReturnType<typeof createTRPCReact<TAppApi>>;
+  trpcClient: TRPCClient<TAppApi>;
+  trpcVanillaClient: ReturnType<typeof createTRPCProxyClient<TAppApi>>;
+} {
   const trpc = createTRPCReact<TAppApi>();
 
   // Cast needed: createTRPCReact returns a ProtectedIntersection that includes
