@@ -1,24 +1,23 @@
-import type { Rule } from "eslint";
-import { RuleTester } from "eslint";
-import { afterAll, describe, it } from "vitest";
+import { RuleTester } from "oxlint/plugins-dev";
+import { describe, it } from "vitest";
 
 import { requireWorkspacePoke } from "./index";
 
-// The rule is typed structurally (see index.ts) to keep eslint's types out of
-// the declaration bundle; hand RuleTester the real shape here.
-const rule = requireWorkspacePoke as unknown as Rule.RuleModule;
+// The rule is typed structurally (see index.ts) to keep the linter's types out
+// of the declaration bundle; hand RuleTester the real shape here. `Rule` is not
+// exported from oxlint/plugins-dev, so borrow it from the `run` signature.
+const rule = requireWorkspacePoke as unknown as Parameters<
+  RuleTester["run"]
+>[1];
 
-// RuleTester calls bare describe/it; point them at vitest's. These static
-// hooks exist at runtime but aren't in @types/eslint, hence the cast.
-Object.assign(RuleTester, {
-  afterAll,
-  describe,
-  it,
-  itOnly: it.only,
-});
+// RuleTester calls bare describe/it; point them at vitest's.
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
+// oxc always parses the latest ECMAScript, so there is no `ecmaVersion` to set.
 const ruleTester = new RuleTester({
-  languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+  languageOptions: { sourceType: "module" },
 });
 
 const options = [{ tables: ["account", "transaction"] }];
