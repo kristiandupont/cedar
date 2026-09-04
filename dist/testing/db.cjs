@@ -1,7 +1,7 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_chunk = require("../chunk-CKQMccvm.cjs");
+const require_rolldown_runtime = require("../rolldown-runtime-VH7oDXx4.cjs");
 let knex = require("knex");
-knex = require_chunk.__toESM(knex);
+knex = require_rolldown_runtime.__toESM(knex);
 //#region src/testing/get-knex-for.ts
 function getConnectionStringForDatabase(connectionString, database) {
 	const url = new URL(connectionString);

@@ -1,8 +1,7 @@
 import * as jwt from "jsonwebtoken";
 import { EmailString, IpString } from "narrow-types";
-
 //#region src/auth/jwt.d.ts
-declare function createSessionTokenHandler<TUser, TUserId extends string | number>(options: {
+export declare function createSessionTokenHandler<TUser, TUserId extends string | number>(options: {
   jwtOptions: jwt.SignOptions;
   getSecret: () => Promise<string>;
   lookupUser: (memberId: TUserId) => Promise<TUser | undefined>;
@@ -14,12 +13,11 @@ declare function createSessionTokenHandler<TUser, TUserId extends string | numbe
 };
 //#endregion
 //#region src/auth/login-token.d.ts
-declare function createLoginTokenHandler(options: {
+export declare function createLoginTokenHandler(options: {
   getSecret: () => Promise<string>;
 }): {
   createLoginToken: (email: EmailString) => Promise<string>;
   extractEmailFromToken: (token: string) => Promise<EmailString>;
 };
 //#endregion
-export { createLoginTokenHandler, createSessionTokenHandler };
 //# sourceMappingURL=auth.d.cts.map

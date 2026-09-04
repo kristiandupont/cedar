@@ -82,7 +82,8 @@ interface Directive extends BaseNode {
 interface BaseFunction extends BaseNode {
   params: Pattern[];
   generator?: boolean | undefined;
-  async?: boolean | undefined; // The body is either BlockStatement or Expression because arrow functions
+  async?: boolean | undefined;
+  // The body is either BlockStatement or Expression because arrow functions
   // can have a body that's either. FunctionDeclarations and
   // FunctionExpressions have only BlockStatement bodies.
   body: BlockStatement | Expression;
@@ -403,7 +404,8 @@ interface TemplateElement extends BaseNode {
   type: "TemplateElement";
   tail: boolean;
   value: {
-    /** It is null when the template literal is tagged and the text has an invalid escape (e.g. - tag`\unicode and \u{55}`) */cooked?: string | null | undefined;
+    /** It is null when the template literal is tagged and the text has an invalid escape (e.g. - tag`\unicode and \u{55}`) */
+    cooked?: string | null | undefined;
     raw: string;
   };
 }
@@ -543,7 +545,7 @@ interface RuleModule {
   create(context: RuleContext): RuleListener;
 }
 declare const requireWorkspacePoke: RuleModule;
-declare const rules: {
+export declare const rules: {
   "require-workspace-poke": RuleModule;
 };
 declare const plugin: {
@@ -556,5 +558,5 @@ declare const plugin: {
   };
 };
 //#endregion
-export { plugin as default, requireWorkspacePoke, rules };
+export { plugin as default, requireWorkspacePoke };
 //# sourceMappingURL=eslint.d.cts.map

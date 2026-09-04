@@ -1,31 +1,31 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_chunk = require("./chunk-CKQMccvm.cjs");
+const require_rolldown_runtime = require("./rolldown-runtime-VH7oDXx4.cjs");
 let node_timers_promises = require("node:timers/promises");
 let _koa_cors = require("@koa/cors");
-_koa_cors = require_chunk.__toESM(_koa_cors);
+_koa_cors = require_rolldown_runtime.__toESM(_koa_cors);
 let _koa_router = require("@koa/router");
-_koa_router = require_chunk.__toESM(_koa_router);
+_koa_router = require_rolldown_runtime.__toESM(_koa_router);
 let koa = require("koa");
-koa = require_chunk.__toESM(koa);
+koa = require_rolldown_runtime.__toESM(koa);
 let koa_easy_ws = require("koa-easy-ws");
-koa_easy_ws = require_chunk.__toESM(koa_easy_ws);
+koa_easy_ws = require_rolldown_runtime.__toESM(koa_easy_ws);
 let koa_helmet = require("koa-helmet");
-koa_helmet = require_chunk.__toESM(koa_helmet);
+koa_helmet = require_rolldown_runtime.__toESM(koa_helmet);
 let koa_logger = require("koa-logger");
-koa_logger = require_chunk.__toESM(koa_logger);
+koa_logger = require_rolldown_runtime.__toESM(koa_logger);
 let trpc_koa_adapter = require("trpc-koa-adapter");
 let node_async_hooks = require("node:async_hooks");
 let knex = require("knex");
-knex = require_chunk.__toESM(knex);
+knex = require_rolldown_runtime.__toESM(knex);
 let pg = require("pg");
 let postgres_range = require("postgres-range");
 let superjson = require("superjson");
-superjson = require_chunk.__toESM(superjson);
+superjson = require_rolldown_runtime.__toESM(superjson);
 let narrow_types = require("narrow-types");
 let request_ip = require("request-ip");
 let _trpc_server = require("@trpc/server");
 let pg_listen = require("pg-listen");
-pg_listen = require_chunk.__toESM(pg_listen);
+pg_listen = require_rolldown_runtime.__toESM(pg_listen);
 //#region src/backend/db.ts
 globalThis.__cedarDbStorage ??= new node_async_hooks.AsyncLocalStorage();
 const dbAsyncLocalStorage = globalThis.__cedarDbStorage;
@@ -240,7 +240,8 @@ function createSocketRegistry(options) {
 			}, authTimeoutMs);
 			socket.once("message", (inputBuffer) => {
 				clearTimeout(timer);
-				authenticate(inputBuffer.toString("utf8"), clientIp).then(resolve);
+				const token = inputBuffer.toString("utf8");
+				authenticate(token, clientIp).then(resolve);
 			});
 			socket.once("close", () => {
 				clearTimeout(timer);

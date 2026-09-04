@@ -5,19 +5,18 @@ import { createTRPCReact } from "@trpc/react-query";
 import { WorkspaceDelta, workspaceVersionRef } from "workspace-sync";
 import { QueryClient } from "@tanstack/react-query";
 import { UseTRPCMutationResult } from "@trpc/react-query/shared";
-
 //#region src/frontend/combine-wrappers.d.ts
 interface WrapperItem {
   Wrapper: ComponentType<any>;
   props: any;
 }
-declare const wrp: <T extends ComponentType<any>>(Wrapper: T, props?: Omit<ComponentProps<T>, "children"> | undefined) => WrapperItem;
+export declare const wrp: <T extends ComponentType<any>>(Wrapper: T, props?: Omit<ComponentProps<T>, "children"> | undefined) => WrapperItem;
 declare const combineWrappers: (displayName: string, wrappers: WrapperItem[]) => FC<{
   children: ReactNode | null;
 }>;
 //#endregion
 //#region src/frontend/create-trpc-clients.d.ts
-declare function createTrpcClients<TAppApi extends AnyRouter>(options: {
+export declare function createTrpcClients<TAppApi extends AnyRouter>(options: {
   url: string;
 }): {
   trpc: ReturnType<typeof createTRPCReact<TAppApi>>;
@@ -26,7 +25,7 @@ declare function createTrpcClients<TAppApi extends AnyRouter>(options: {
 };
 //#endregion
 //#region src/frontend/root-providers.d.ts
-declare function createCoreProviders(trpc: {
+export declare function createCoreProviders(trpc: {
   Provider: ComponentType<any>;
 }, trpcClient: unknown, geigerEnabled?: boolean): {
   providers: WrapperItem[];
@@ -34,7 +33,7 @@ declare function createCoreProviders(trpc: {
 };
 //#endregion
 //#region src/frontend/use-mutation-with-delta.d.ts
-declare function useMutationWithDelta<TData, TError, TVariables, TContext>(mutation: UseTRPCMutationResult<{
+export declare function useMutationWithDelta<TData, TError, TVariables, TContext>(mutation: UseTRPCMutationResult<{
   data: TData;
   delta: WorkspaceDelta;
 }, TError, TVariables, TContext>, applyDelta: (delta: WorkspaceDelta) => void): Omit<UseTRPCMutationResult<TData, TError, TVariables, TContext>, "mutate" | "mutateAsync" | "data"> & {
@@ -54,12 +53,12 @@ type WsContext = {
  * on every (re)connect so consumers can catch up on changes missed while the
  * socket was down.
  */
-declare const wsEventTarget: EventTarget;
-declare const WsProvider: FC<{
+export declare const wsEventTarget: EventTarget;
+export declare const WsProvider: FC<{
   children: ReactNode;
   wsUrl: string;
 }>;
-declare const useWs: () => WsContext;
+export declare const useWs: () => WsContext;
 //#endregion
-export { type WrapperItem, WsProvider, combineWrappers, createCoreProviders, createTrpcClients, useMutationWithDelta, useWs, workspaceVersionRef, wrp, wsEventTarget };
+export { type WrapperItem, combineWrappers, workspaceVersionRef };
 //# sourceMappingURL=frontend.d.cts.map

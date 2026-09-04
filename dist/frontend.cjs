@@ -1,7 +1,7 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const require_chunk = require("./chunk-CKQMccvm.cjs");
+const require_rolldown_runtime = require("./rolldown-runtime-VH7oDXx4.cjs");
 let superjson = require("superjson");
-superjson = require_chunk.__toESM(superjson);
+superjson = require_rolldown_runtime.__toESM(superjson);
 let react_jsx_runtime = require("react/jsx-runtime");
 let _trpc_client = require("@trpc/client");
 let _trpc_react_query = require("@trpc/react-query");

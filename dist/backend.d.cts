@@ -7,9 +7,8 @@ import { CreateTrpcKoaContextOptions } from "trpc-koa-adapter";
 import superjson from "superjson";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Knex } from "knex";
-
 //#region src/backend/create-app.d.ts
-declare function createApp(options: {
+export declare function createApp(options: {
   corsConfig?: Options;
   appApi: AnyRouter;
   createContext: (opts: CreateTrpcKoaContextOptions) => Promise<unknown>;
@@ -24,16 +23,14 @@ type BaseContext<TUser> = {
   origin: string | undefined;
   workspaceVersion: Date | undefined;
 };
-declare const trpcConfig: {
+export declare const trpcConfig: {
   readonly transformer: typeof superjson;
 };
-declare function buildContext<TUser extends {
+export declare function buildContext<TUser extends {
   id: string | number;
 }>(config: {
   decodeSessionToken: (token: string, ip: IpString | undefined) => Promise<TUser | undefined>;
-}): ({
-  req
-}: CreateTrpcKoaContextOptions) => Promise<BaseContext<TUser>>;
+}): ({ req }: CreateTrpcKoaContextOptions) => Promise<BaseContext<TUser>>;
 //#endregion
 //#region src/backend/db.d.ts
 type DbStore = {
@@ -43,11 +40,11 @@ type DbStore = {
 declare global {
   var __cedarDbStorage: AsyncLocalStorage<DbStore> | undefined;
 }
-declare function initDb(config: Knex.Config): void;
+export declare function initDb(config: Knex.Config): void;
 declare const getDb: () => Knex;
-declare const getTrx: () => Knex.Transaction;
-declare const dbMiddleware: Koa$1.Middleware;
-declare function wrapInTransaction<A extends Array<unknown>, R>(callback: (...args: A) => Promise<R>, db?: Knex): (...args: A) => Promise<R>;
+export declare const getTrx: () => Knex.Transaction;
+export declare const dbMiddleware: Koa$1.Middleware;
+export declare function wrapInTransaction<A extends Array<unknown>, R>(callback: (...args: A) => Promise<R>, db?: Knex): (...args: A) => Promise<R>;
 //#endregion
 //#region src/backend/trpc-assert.d.ts
 type TRPC_ERROR_CODE_KEY = ConstructorParameters<typeof TRPCError$1>[0]["code"];
@@ -59,7 +56,7 @@ declare function trpcAssert(condition: unknown, msg: string, code?: TRPC_ERROR_C
  * changes. The payload is the typed anchor only — `{ type, id }` — never row
  * data: NOTIFY caps at 8 kB, and a poked client pulls the delta itself anyway.
  */
-declare const WORKSPACE_CHANGED_CHANNEL = "workspace_changed";
+export declare const WORKSPACE_CHANGED_CHANNEL = "workspace_changed";
 type WorkspacePokePayload = {
   type: string;
   id: string | number;
@@ -85,7 +82,7 @@ type WorkspacePokePayload = {
  * the delta pull reflects everything since the client's version regardless, and
  * the listener debounces per key on top of that.
  */
-declare function pokeWorkspace(anchorType: string, anchorId: string | number): Promise<void>;
+export declare function pokeWorkspace(anchorType: string, anchorId: string | number): Promise<void>;
 //#endregion
 //#region src/backend/socket-registry.d.ts
 type Logger$1 = {
@@ -118,7 +115,7 @@ interface SocketRegistry {
  * entries, so it was always false and every reconnect orphaned the member's
  * other tabs. That silent bug must not recur here.
  */
-declare function createSocketRegistry<TMember>(options: {
+export declare function createSocketRegistry<TMember>(options: {
   /** Verify the session token (first ws message) and return the member, or
    * undefined to reject. Runs where DB access is set up — the app wraps its
    * token decode in a transaction. */
@@ -126,7 +123,8 @@ declare function createSocketRegistry<TMember>(options: {
   /** The topics this identity may receive on. Evaluated once at connect; a
    * mid-session role change takes effect on reconnect. */
   resolveSubscriptions: (member: TMember) => string[];
-  logger?: Logger$1; /** How long to wait for the auth message before closing. Default 5 s. */
+  logger?: Logger$1;
+  /** How long to wait for the auth message before closing. Default 5 s. */
   authTimeoutMs?: number;
 }): SocketRegistry;
 //#endregion
@@ -150,7 +148,7 @@ interface DbListener {
  * Pokes are best-effort — a `pg-listen` reconnect drops notifications in its
  * gap — so a client's fallback poll is the correctness backstop, not this.
  */
-declare function establishDbListener(connectionString: string, channels: string[], logger?: Logger): Promise<DbListener>;
+export declare function establishDbListener(connectionString: string, channels: string[], logger?: Logger): Promise<DbListener>;
 /**
  * Wires the `workspace_changed` channel to the socket registry: on a poke, fan
  * out to whichever sockets subscribe to that anchor's topic. The message
@@ -161,11 +159,11 @@ declare function establishDbListener(connectionString: string, channels: string[
  * yields a single poke, since the client pulls the whole delta since its version
  * regardless of how many writes triggered it. Returns an unsubscribe function.
  */
-declare function bridgeWorkspacePokesToSockets(options: {
+export declare function bridgeWorkspacePokesToSockets(options: {
   target: EventTarget;
   sendToTopic: (topic: string, payloadString: string) => void;
   debounceMs?: number;
 }): () => void;
 //#endregion
-export { type BaseContext, type CorsOptions, type DbListener, type SocketRegistry, TRPCError, WORKSPACE_CHANGED_CHANNEL, type WorkspacePokePayload, bridgeWorkspacePokesToSockets, buildContext, createApp, createSocketRegistry, dbMiddleware, establishDbListener, getDb, getTrx, type inferRouterInputs, type inferRouterOutputs, initDb, pokeWorkspace, trpcAssert, trpcConfig, wrapInTransaction };
+export { type BaseContext, type CorsOptions, type DbListener, type SocketRegistry, TRPCError, type WorkspacePokePayload, getDb, type inferRouterInputs, type inferRouterOutputs, trpcAssert };
 //# sourceMappingURL=backend.d.cts.map

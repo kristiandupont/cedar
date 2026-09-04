@@ -26,13 +26,13 @@ Object.defineProperties(exports, {
 *     "cedar/require-workspace-poke": ["warn", { tables: ["account", ...] }],
 *   }
 */
-const WRITE_METHODS = new Set([
+const WRITE_METHODS = /* @__PURE__ */ new Set([
 	"insert",
 	"update",
 	"delete",
 	"del"
 ]);
-const FUNCTION_TYPES = new Set([
+const FUNCTION_TYPES = /* @__PURE__ */ new Set([
 	"FunctionDeclaration",
 	"FunctionExpression",
 	"ArrowFunctionExpression"
