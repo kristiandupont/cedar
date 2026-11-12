@@ -1,6 +1,6 @@
 # cedar
 
-Cedar is the shared framework library for Beatpoints and Moneybutler. It extracts common Koa/tRPC/DB/auth/kanel scaffolding so both apps share it without duplication.
+Cedar is the shared framework library for Saas apps. It extracts common Koa/tRPC/DB/auth/kanel scaffolding so both apps share it without duplication.
 
 ## Export paths
 
