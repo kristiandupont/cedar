@@ -2,7 +2,7 @@ import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { setTimeout } from "node:timers/promises";
 
-import type { AnyRouter } from "@trpc/server";
+import type { AnyRouter, TRPCError } from "@trpc/server";
 import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
 import type { WebSocket } from "ws";
 import { WebSocketServer } from "ws";
@@ -133,6 +133,13 @@ export function createApp(options: {
         req,
         res,
         path: path.slice("/trpc/".length),
+        // Clients get a generic message for these (see `trpcConfig`), so the
+        // server log is the only place the details appear.
+        onError: ({ error, path: procedurePath }: { error: TRPCError; path?: string }) => {
+          if (error.code === "INTERNAL_SERVER_ERROR") {
+            console.error(`tRPC ${procedurePath ?? "(unknown)"} failed:`, error.cause ?? error);
+          }
+        },
       } as Parameters<typeof nodeHTTPRequestHandler>[0]);
       return;
     }

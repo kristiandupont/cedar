@@ -394,6 +394,53 @@ describe("createApp: request transaction", () => {
   });
 });
 
+describe("createApp: error responses", () => {
+  it("replaces the message of an unexpected exception and logs the original", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { body } = await trpcMutation("crash");
+    expect(body.error.json.message).toBe("Internal server error");
+    // This router runs with isDev (NODE_ENV is "test"), so tRPC adds
+    // `data.stack`, which contains the message. The next-but-one test checks
+    // the production shape, which has no stack.
+    expect(consoleError).toHaveBeenCalledWith(
+      "tRPC crash failed:",
+      expect.objectContaining({ message: "unexpected" }),
+    );
+  });
+
+  it("keeps the message of a deliberate non-500 error and does not log it", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { body } = await trpcMutation("fail");
+    expect(body.error.json.message).toBe("nope");
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it("sends neither the message nor a stack trace when not in development", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    // `isDev` defaults to NODE_ENV !== "production"; production behaves like this.
+    const prodT = initTRPC.context<BaseContext<User>>().create({ ...trpcConfig, isDev: false });
+    const prodApi = prodT.router({
+      query: prodT.procedure.query(() => {
+        throw new Error('select "password_hash" from "secret_table" - relation does not exist');
+      }),
+    });
+    const prod = createApp({ appApi: prodApi, createContext }).listen(0);
+    const prodHost = await listen(prod);
+    try {
+      const response = await fetch(`http://${prodHost}/trpc/query`);
+      const body = (await response.json()) as Record<string, any>;
+      expect(response.status).toBe(500);
+      expect(body.error.json).toEqual({
+        message: "Internal server error",
+        code: -32603,
+        data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500, path: "query" },
+      });
+    } finally {
+      await close(prod);
+    }
+  });
+});
+
 describe("createApp: simulateLatency", () => {
   it("delays responses by the configured number of milliseconds", async () => {
     const slow = createApp({ appApi, createContext, simulateLatency: 150 }).listen(0);

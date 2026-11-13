@@ -195,7 +195,10 @@ function createApp(options) {
 				createContext,
 				req,
 				res,
-				path: path.slice(6)
+				path: path.slice(6),
+				onError: ({ error, path: procedurePath }) => {
+					if (error.code === "INTERNAL_SERVER_ERROR") console.error(`tRPC ${procedurePath ?? "(unknown)"} failed:`, error.cause ?? error);
+				}
 			});
 			return;
 		}
@@ -229,7 +232,30 @@ function createApp(options) {
 }
 //#endregion
 //#region src/backend/create-trpc.ts
-const trpcConfig = { transformer: superjson.default };
+/** The message sent to clients for every `INTERNAL_SERVER_ERROR`. */
+const internalErrorMessage = "Internal server error";
+/**
+* Keeps server-side details out of error responses. tRPC always sends
+* `error.message`, and for an unexpected exception (anything that is not a
+* `TRPCError`) that is the exception's own message: for a Knex/Postgres error,
+* the SQL text and the database error. Every `INTERNAL_SERVER_ERROR` therefore
+* gets a generic message; `createApp` logs the original on the server.
+*
+* Other codes are deliberate (`trpcAssert(row, "Not found", "NOT_FOUND")`,
+* input validation) and keep their message. tRPC adds `data.stack` only when
+* `NODE_ENV` is not "production".
+*/
+function errorFormatter({ shape, error }) {
+	if (error.code !== "INTERNAL_SERVER_ERROR") return shape;
+	return {
+		...shape,
+		message: internalErrorMessage
+	};
+}
+const trpcConfig = {
+	transformer: superjson.default,
+	errorFormatter
+};
 function buildContext(config) {
 	return async function createContext({ req }) {
 		const r = narrow_types.ipString.safeParse((0, request_ip.getClientIp)(req));

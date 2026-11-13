@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import type { DefaultErrorShape, TRPCError } from "@trpc/server";
 import type { NodeHTTPCreateContextFnOptions } from "@trpc/server/adapters/node-http";
 import type { IpString } from "narrow-types";
 import { ipString } from "narrow-types";
@@ -19,7 +20,32 @@ export type BaseContext<TUser> = {
   workspaceVersion: Date | undefined;
 };
 
-export const trpcConfig = { transformer: superjson } as const;
+/** The message sent to clients for every `INTERNAL_SERVER_ERROR`. */
+export const internalErrorMessage = "Internal server error";
+
+/**
+ * Keeps server-side details out of error responses. tRPC always sends
+ * `error.message`, and for an unexpected exception (anything that is not a
+ * `TRPCError`) that is the exception's own message: for a Knex/Postgres error,
+ * the SQL text and the database error. Every `INTERNAL_SERVER_ERROR` therefore
+ * gets a generic message; `createApp` logs the original on the server.
+ *
+ * Other codes are deliberate (`trpcAssert(row, "Not found", "NOT_FOUND")`,
+ * input validation) and keep their message. tRPC adds `data.stack` only when
+ * `NODE_ENV` is not "production".
+ */
+function errorFormatter({
+  shape,
+  error,
+}: {
+  shape: DefaultErrorShape;
+  error: TRPCError;
+}): DefaultErrorShape {
+  if (error.code !== "INTERNAL_SERVER_ERROR") return shape;
+  return { ...shape, message: internalErrorMessage };
+}
+
+export const trpcConfig = { transformer: superjson, errorFormatter } as const;
 
 export function buildContext<TUser extends { id: string | number }>(config: {
   decodeSessionToken: (

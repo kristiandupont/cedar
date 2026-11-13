@@ -1,6 +1,6 @@
 import { IpString } from "narrow-types";
 import { IncomingMessage, Server, ServerResponse } from "node:http";
-import { AnyRouter, TRPCError, TRPCError as TRPCError$1, inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import { AnyRouter, DefaultErrorShape, TRPCError, TRPCError as TRPCError$1, inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { WebSocket } from "ws";
 import { NodeHTTPCreateContextFnOptions } from "@trpc/server/adapters/node-http";
 import superjson from "superjson";
@@ -15,8 +15,24 @@ type BaseContext<TUser> = {
   origin: string | undefined;
   workspaceVersion: Date | undefined;
 };
+/**
+ * Keeps server-side details out of error responses. tRPC always sends
+ * `error.message`, and for an unexpected exception (anything that is not a
+ * `TRPCError`) that is the exception's own message: for a Knex/Postgres error,
+ * the SQL text and the database error. Every `INTERNAL_SERVER_ERROR` therefore
+ * gets a generic message; `createApp` logs the original on the server.
+ *
+ * Other codes are deliberate (`trpcAssert(row, "Not found", "NOT_FOUND")`,
+ * input validation) and keep their message. tRPC adds `data.stack` only when
+ * `NODE_ENV` is not "production".
+ */
+declare function errorFormatter({ shape, error }: {
+  shape: DefaultErrorShape;
+  error: TRPCError$1;
+}): DefaultErrorShape;
 export declare const trpcConfig: {
   readonly transformer: typeof superjson;
+  readonly errorFormatter: typeof errorFormatter;
 };
 export declare function buildContext<TUser extends {
   id: string | number;
