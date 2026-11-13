@@ -1,5 +1,6 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const require_rolldown_runtime = require("./rolldown-runtime-VH7oDXx4.cjs");
+const require_ws_close_codes = require("./ws-close-codes-C2I_UIEG.cjs");
 let node_http = require("node:http");
 let node_timers_promises = require("node:timers/promises");
 let _trpc_server_adapters_node_http = require("@trpc/server/adapters/node-http");
@@ -45,6 +46,49 @@ const getTrx = () => {
 	if (!trx) throw new Error("Transaction not found in AsyncLocalStorage");
 	return trx;
 };
+/** Thrown inside the savepoint callback to make Knex roll the savepoint back.
+* An `Error` subclass, because Knex replaces non-Error rejections. */
+var SavepointRollback = class extends Error {};
+/**
+* Runs one tRPC procedure in a savepoint of the current transaction. Use it as
+* the first middleware of every procedure:
+*
+* ```ts
+* const baseProcedure = t.procedure.use(
+*   t.middleware(({ next }) => runInSavepoint(() => next())),
+* );
+* ```
+*
+* A request's transaction commits even when a procedure fails, because tRPC
+* turns the error into a response instead of rethrowing it (and one HTTP
+* request can carry several batched procedures). The savepoint makes a failed
+* procedure undo its own writes, including a `pokeWorkspace` NOTIFY, while the
+* other procedures in the batch keep theirs. It also recovers the transaction
+* after a SQL error, which would otherwise abort every later statement in it.
+*
+* tRPC's `next()` does not throw for a failed procedure; it resolves to
+* `{ ok: false }`. That result is returned unchanged, so tRPC still sends the
+* error. Without a current transaction (e.g. outside a request), `next` runs
+* as is.
+*/
+async function runInSavepoint(next) {
+	const store = dbAsyncLocalStorage.getStore();
+	if (!store?.trx) return next();
+	const { db, trx } = store;
+	let result;
+	try {
+		await trx.transaction(async (savepoint) => {
+			result = await dbAsyncLocalStorage.run({
+				db,
+				trx: savepoint
+			}, next);
+			if (!result.ok) throw new SavepointRollback();
+		});
+	} catch (error) {
+		if (!(error instanceof SavepointRollback)) throw error;
+	}
+	return result;
+}
 function wrapInTransaction(callback, db) {
 	return async (...args) => {
 		const target = db ?? _globalDb;
@@ -319,22 +363,28 @@ function createSocketRegistry(options) {
 	const wsHandler = async (socket, req) => {
 		const parsedIp = narrow_types.ipString.safeParse((0, request_ip.getClientIp)(req));
 		const clientIp = parsedIp.success ? parsedIp.data : void 0;
-		const member = await new Promise((resolve) => {
-			const timer = setTimeout(() => {
-				socket.close(1008, "Authentication timeout");
-				resolve(void 0);
-			}, authTimeoutMs);
+		const outcome = await new Promise((resolve) => {
+			const timer = setTimeout(() => resolve({ failure: "timeout" }), authTimeoutMs);
 			socket.once("message", (inputBuffer) => {
 				clearTimeout(timer);
 				const token = inputBuffer.toString("utf8");
-				authenticate(token, clientIp).then(resolve);
+				authenticate(token, clientIp).then((member) => resolve(member ? { member } : { failure: "rejected" }), (err) => {
+					logger.error("Socket authentication failed", err);
+					resolve({ failure: "error" });
+				});
 			});
 			socket.once("close", () => {
 				clearTimeout(timer);
-				resolve(void 0);
+				resolve({ failure: "client-closed" });
 			});
 		});
-		if (!member) return;
+		if ("failure" in outcome) {
+			if (outcome.failure === "timeout") socket.close(require_ws_close_codes.wsCloseCodes.authTimeout, "Authentication timeout");
+			else if (outcome.failure === "rejected") socket.close(require_ws_close_codes.wsCloseCodes.authFailed, "Authentication failed");
+			else if (outcome.failure === "error") socket.close(require_ws_close_codes.wsCloseCodes.serverError, "Internal error");
+			return;
+		}
+		const { member } = outcome;
 		const id = Symbol();
 		const topics = resolveSubscriptions(member);
 		socket.on("error", (err) => {
@@ -453,6 +503,7 @@ exports.getDb = getDb;
 exports.getTrx = getTrx;
 exports.initDb = initDb;
 exports.pokeWorkspace = pokeWorkspace;
+exports.runInSavepoint = runInSavepoint;
 exports.trpcAssert = trpcAssert;
 exports.trpcConfig = trpcConfig;
 exports.wrapInTransaction = wrapInTransaction;

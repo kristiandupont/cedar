@@ -49,9 +49,12 @@ type WsContext = {
 /**
  * The same `EventTarget` `useWs()` exposes, available at module scope so it can
  * be handed to `createWorkspaceProvider({ pokeTarget })` (which runs outside the
- * React tree). It emits the websocket's `message` events, plus an `open` event
- * on every (re)connect so consumers can catch up on changes missed while the
- * socket was down.
+ * React tree). It emits the websocket's `message` events, an `open` event on
+ * every (re)connect so consumers can catch up on changes missed while the
+ * socket was down, and an `auth-failed` event when the server rejects the
+ * session token. After `auth-failed` the provider stops reconnecting, because
+ * the same token cannot succeed; the app should re-check the session (and log
+ * out) when it receives that event.
  */
 export declare const wsEventTarget: EventTarget;
 export declare const WsProvider: FC<{

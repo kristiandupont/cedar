@@ -9,7 +9,7 @@ import { WebSocket } from "ws";
 import { createApp } from "./create-app";
 import type { BaseContext } from "./create-trpc";
 import { buildContext, trpcConfig } from "./create-trpc";
-import { getTrx, initDb } from "./db";
+import { getTrx, initDb, runInSavepoint } from "./db";
 import { createSocketRegistry } from "./socket-registry";
 
 /**
@@ -25,16 +25,48 @@ import { createSocketRegistry } from "./socket-registry";
 const knexFake = vi.hoisted(() => {
   const log: string[] = [];
   let next = 0;
+
+  type FakeTrx = {
+    name: string;
+    transaction: <T>(callback: (trx: FakeTrx) => Promise<T>) => Promise<T>;
+  };
+
+  /** Mirrors Knex: a nested transaction is a savepoint, and siblings run one
+   * after another (each waits for the previous one to finish). */
+  function makeTrx(name: string): FakeTrx {
+    let children = 0;
+    let lastChild: Promise<unknown> = Promise.resolve();
+    return {
+      name,
+      transaction<T>(callback: (trx: FakeTrx) => Promise<T>): Promise<T> {
+        const child = makeTrx(`${name}.${++children}`);
+        const run = lastChild.then(async () => {
+          log.push(`savepoint ${child.name}`);
+          try {
+            const result = await callback(child);
+            log.push(`release ${child.name}`);
+            return result;
+          } catch (error) {
+            log.push(`rollback to ${child.name}`);
+            throw error;
+          }
+        });
+        lastChild = run.catch(() => {});
+        return run;
+      },
+    };
+  }
+
   const db = {
-    async transaction<T>(callback: (trx: { id: number }) => Promise<T>): Promise<T> {
-      const trx = { id: ++next };
-      log.push(`begin ${trx.id}`);
+    async transaction<T>(callback: (trx: FakeTrx) => Promise<T>): Promise<T> {
+      const trx = makeTrx(String(++next));
+      log.push(`begin ${trx.name}`);
       try {
         const result = await callback(trx);
-        log.push(`commit ${trx.id}`);
+        log.push(`commit ${trx.name}`);
         return result;
       } catch (error) {
-        log.push(`rollback ${trx.id}`);
+        log.push(`rollback ${trx.name}`);
         throw error;
       }
     },
@@ -48,21 +80,26 @@ type User = { id: number };
 
 const t = initTRPC.context<BaseContext<User>>().create(trpcConfig);
 
+/** The base procedure the apps use: every procedure runs in a savepoint. */
+const procedure = t.procedure.use(t.middleware(({ next }) => runInSavepoint(() => next())));
+
+const trxName = () => (getTrx() as unknown as { name: string }).name;
+
 const appApi = t.router({
-  whoami: t.procedure.query(({ ctx }) => ({
+  whoami: procedure.query(({ ctx }) => ({
     user: ctx.user,
     origin: ctx.origin,
     workspaceVersion: ctx.workspaceVersion,
     // A Date checks that SuperJSON is the transformer.
     at: new Date(0),
   })),
-  write: t.procedure.mutation(() => ({ trxId: (getTrx() as unknown as { id: number }).id })),
-  fail: t.procedure.mutation(() => {
-    getTrx();
+  write: procedure.mutation(() => ({ trx: trxName() })),
+  fail: procedure.mutation(() => {
+    trxName();
     throw new TRPCError({ code: "BAD_REQUEST", message: "nope" });
   }),
-  crash: t.procedure.mutation(() => {
-    getTrx();
+  crash: procedure.mutation(() => {
+    trxName();
     throw new Error("unexpected");
   }),
 });
@@ -308,49 +345,52 @@ describe("createApp: CORS", () => {
 });
 
 describe("createApp: request transaction", () => {
-  it("runs a mutation inside a transaction and commits it", async () => {
+  it("runs a mutation in a savepoint of the request transaction and commits both", async () => {
     const { response, body } = await trpcMutation("write");
     expect(response.status).toBe(200);
-    expect(superjson.deserialize(body.result.data)).toEqual({ trxId: 1 });
-    expect(knexFake.log).toEqual(["begin 1", "commit 1"]);
+    expect(superjson.deserialize(body.result.data)).toEqual({ trx: "1.1" });
+    expect(knexFake.log).toEqual(["begin 1", "savepoint 1.1", "release 1.1", "commit 1"]);
   });
 
-  it("records what happens to the transaction when a procedure throws a TRPCError", async () => {
+  // Under Koa, and before savepoints, both of these committed the failed
+  // procedure's writes: tRPC turns the error into a response, so the request
+  // transaction never saw it.
+  it("rolls back the savepoint of a procedure that throws a TRPCError", async () => {
     const { response, body } = await trpcMutation("fail");
-    expect({ status: response.status, code: body.error.json.data.code, log: knexFake.log })
-      .toMatchInlineSnapshot(`
-        {
-          "code": "BAD_REQUEST",
-          "log": [
-            "begin 1",
-            "commit 1",
-          ],
-          "status": 400,
-        }
-      `);
+    expect({ status: response.status, code: body.error.json.data.code }).toEqual({
+      status: 400,
+      code: "BAD_REQUEST",
+    });
+    expect(knexFake.log).toEqual(["begin 1", "savepoint 1.1", "rollback to 1.1", "commit 1"]);
   });
 
-  it("records what happens to the transaction when a procedure throws an Error", async () => {
+  it("rolls back the savepoint of a procedure that throws an Error", async () => {
     const { response, body } = await trpcMutation("crash");
-    expect({ status: response.status, code: body.error.json.data.code, log: knexFake.log })
-      .toMatchInlineSnapshot(`
-        {
-          "code": "INTERNAL_SERVER_ERROR",
-          "log": [
-            "begin 1",
-            "commit 1",
-          ],
-          "status": 500,
-        }
-      `);
+    expect({ status: response.status, code: body.error.json.data.code }).toEqual({
+      status: 500,
+      code: "INTERNAL_SERVER_ERROR",
+    });
+    expect(knexFake.log).toEqual(["begin 1", "savepoint 1.1", "rollback to 1.1", "commit 1"]);
   });
 
-  it("uses one transaction for a batched request", async () => {
-    const { response } = await trpcMutation("write,write?batch=1", {
+  it("gives each procedure in a batch its own savepoint, run one after another", async () => {
+    const { response, body } = await trpcMutation("write,fail,write?batch=1", {
       body: JSON.stringify({}),
     });
-    expect(response.status).toBe(200);
-    expect(knexFake.log).toEqual(["begin 1", "commit 1"]);
+    expect(response.status).toBe(207);
+    const results = body as Array<{ result?: { data: unknown }; error?: unknown }>;
+    expect(results.map((r) => (r.result ? superjson.deserialize(r.result.data as never) : "error")))
+      .toEqual([{ trx: "1.1" }, "error", { trx: "1.3" }]);
+    expect(knexFake.log).toEqual([
+      "begin 1",
+      "savepoint 1.1",
+      "release 1.1",
+      "savepoint 1.2",
+      "rollback to 1.2",
+      "savepoint 1.3",
+      "release 1.3",
+      "commit 1",
+    ]);
   });
 });
 
@@ -431,16 +471,17 @@ describe("createApp: WebSocket", () => {
     expect(knexFake.log).toEqual([]);
   });
 
-  it("records what happens to a socket whose token is rejected", async () => {
+  // Under Koa the socket stayed open, unsubscribed, until the client left.
+  it("closes a socket whose token is rejected with 4001", async () => {
     const outcome = await socketOutcome("/ws", "bad", 250);
     expect(registry.isTopicSubscribed("member:7")).toBe(false);
-    expect(outcome).toMatchInlineSnapshot(`
-      {
-        "closed": false,
-        "messages": [],
-        "opened": true,
-      }
-    `);
+    expect(outcome).toEqual({
+      opened: true,
+      closed: true,
+      code: 4001,
+      reason: "Authentication failed",
+      messages: [],
+    });
   });
 
   it("closes a socket that never authenticates", async () => {

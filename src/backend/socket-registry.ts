@@ -5,6 +5,8 @@ import { ipString } from "narrow-types";
 import { getClientIp } from "request-ip";
 import type { WebSocket } from "ws";
 
+import { wsCloseCodes } from "../ws-close-codes";
+
 type Logger = {
   info: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;
@@ -109,27 +111,45 @@ export function createSocketRegistry<TMember>(options: {
     const parsedIp = ipString.safeParse(getClientIp(req));
     const clientIp = parsedIp.success ? parsedIp.data : undefined;
 
-    // The first message must be the session token, or we close.
-    const member = await new Promise<TMember | undefined>((resolve) => {
-      const timer = setTimeout(() => {
-        socket.close(1008, "Authentication timeout");
-        resolve(undefined);
-      }, authTimeoutMs);
+    // The first message must be the session token. Every outcome other than an
+    // authenticated member ends with the socket closed; the close code tells
+    // the client whether reconnecting can help (see `wsCloseCodes`).
+    type AuthOutcome =
+      | { member: TMember }
+      | { failure: "timeout" | "rejected" | "error" | "client-closed" };
+    const outcome = await new Promise<AuthOutcome>((resolve) => {
+      const timer = setTimeout(() => resolve({ failure: "timeout" }), authTimeoutMs);
 
       socket.once("message", (inputBuffer: Buffer) => {
         clearTimeout(timer);
         const token = inputBuffer.toString("utf8");
-        void authenticate(token, clientIp).then(resolve);
+        authenticate(token, clientIp).then(
+          (member) => resolve(member ? { member } : { failure: "rejected" }),
+          (err: unknown) => {
+            logger.error("Socket authentication failed", err);
+            resolve({ failure: "error" });
+          },
+        );
       });
 
       socket.once("close", () => {
         clearTimeout(timer);
-        resolve(undefined);
+        resolve({ failure: "client-closed" });
       });
     });
 
-    if (!member) return;
+    if ("failure" in outcome) {
+      if (outcome.failure === "timeout") {
+        socket.close(wsCloseCodes.authTimeout, "Authentication timeout");
+      } else if (outcome.failure === "rejected") {
+        socket.close(wsCloseCodes.authFailed, "Authentication failed");
+      } else if (outcome.failure === "error") {
+        socket.close(wsCloseCodes.serverError, "Internal error");
+      }
+      return;
+    }
 
+    const { member } = outcome;
     const id = Symbol();
     const topics = resolveSubscriptions(member);
 

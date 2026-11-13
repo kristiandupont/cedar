@@ -1,5 +1,6 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const require_rolldown_runtime = require("./rolldown-runtime-VH7oDXx4.cjs");
+const require_ws_close_codes = require("./ws-close-codes-C2I_UIEG.cjs");
 let superjson = require("superjson");
 superjson = require_rolldown_runtime.__toESM(superjson);
 let react_jsx_runtime = require("react/jsx-runtime");
@@ -100,9 +101,12 @@ const target = new EventTarget();
 /**
 * The same `EventTarget` `useWs()` exposes, available at module scope so it can
 * be handed to `createWorkspaceProvider({ pokeTarget })` (which runs outside the
-* React tree). It emits the websocket's `message` events, plus an `open` event
-* on every (re)connect so consumers can catch up on changes missed while the
-* socket was down.
+* React tree). It emits the websocket's `message` events, an `open` event on
+* every (re)connect so consumers can catch up on changes missed while the
+* socket was down, and an `auth-failed` event when the server rejects the
+* session token. After `auth-failed` the provider stops reconnecting, because
+* the same token cannot succeed; the app should re-check the session (and log
+* out) when it receives that event.
 */
 const wsEventTarget = target;
 const wsContext = (0, react.createContext)({ target });
@@ -111,6 +115,7 @@ const WsProvider = ({ children, wsUrl }) => {
 	const sessionToken = localStorage.getItem("sessionToken");
 	(0, react.useEffect)(() => {
 		if (!sessionToken) throw new Error("No session token");
+		let authFailed = false;
 		const tryConnect = () => {
 			const webSocket = new WebSocket(wsUrl);
 			wsRef.current = webSocket;
@@ -121,10 +126,16 @@ const WsProvider = ({ children, wsUrl }) => {
 			webSocket.addEventListener("message", (event) => {
 				target.dispatchEvent(new MessageEvent("message", { data: event.data }));
 			});
+			webSocket.addEventListener("close", (event) => {
+				if (event.code === require_ws_close_codes.wsCloseCodes.authFailed) {
+					authFailed = true;
+					target.dispatchEvent(new Event("auth-failed"));
+				}
+			});
 		};
 		tryConnect();
 		const interval = setInterval(() => {
-			if (wsRef.current?.readyState === WebSocket.CLOSED) tryConnect();
+			if (!authFailed && wsRef.current?.readyState === WebSocket.CLOSED) tryConnect();
 		}, 1e3);
 		return () => {
 			clearInterval(interval);

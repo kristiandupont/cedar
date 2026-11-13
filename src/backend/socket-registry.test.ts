@@ -110,11 +110,33 @@ describe("createSocketRegistry", () => {
     expect(socket.send).toHaveBeenCalledWith("pong");
   });
 
-  it("does not subscribe a rejected socket", async () => {
-    await connect(registry, "reject");
+  it("closes a rejected socket with authFailed and does not subscribe it", async () => {
+    const socket = await connect(registry, "reject");
+    expect(socket.close).toHaveBeenCalledWith(4001, "Authentication failed");
     expect(registry.isTopicSubscribed("member:reject")).toBe(false);
     // sendToTopic to an empty topic is a silent no-op, not an error.
     expect(() => registry.sendToTopic("member:1", "x")).not.toThrow();
+  });
+
+  it("closes the socket with serverError when authenticate throws", async () => {
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const failing = createSocketRegistry<Member>({
+      authenticate: () => Promise.reject(new Error("db down")),
+      resolveSubscriptions,
+      logger,
+    });
+    const socket = await connect(failing, "1");
+    expect(socket.close).toHaveBeenCalledWith(1011, "Internal error");
+    expect(logger.error).toHaveBeenCalledWith("Socket authentication failed", expect.any(Error));
+    expect(failing.isTopicSubscribed("member:1")).toBe(false);
+  });
+
+  it("does not close a socket the client already closed", async () => {
+    const socket = new FakeSocket();
+    const pending = registry.wsHandler(asWebSocket(socket), makeReq());
+    socket.emit("close");
+    await pending;
+    expect(socket.close).not.toHaveBeenCalled();
   });
 
   it("closes a socket that never authenticates", async () => {

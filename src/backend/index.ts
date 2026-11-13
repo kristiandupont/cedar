@@ -2,7 +2,7 @@ export { createApp } from "./create-app";
 export type { WsHandler } from "./create-app";
 export { buildContext, trpcConfig } from "./create-trpc";
 export type { BaseContext, CreateContextOptions } from "./create-trpc";
-export { initDb, getTrx, wrapInTransaction } from "./db";
+export { initDb, getTrx, runInSavepoint, wrapInTransaction } from "./db";
 export { default as getDb } from "./db";
 export { default as trpcAssert } from "./trpc-assert";
 export {

@@ -51,6 +51,31 @@ declare global {
 export declare function initDb(config: Knex.Config): void;
 declare const getDb: () => Knex;
 export declare const getTrx: () => Knex.Transaction;
+/**
+ * Runs one tRPC procedure in a savepoint of the current transaction. Use it as
+ * the first middleware of every procedure:
+ *
+ * ```ts
+ * const baseProcedure = t.procedure.use(
+ *   t.middleware(({ next }) => runInSavepoint(() => next())),
+ * );
+ * ```
+ *
+ * A request's transaction commits even when a procedure fails, because tRPC
+ * turns the error into a response instead of rethrowing it (and one HTTP
+ * request can carry several batched procedures). The savepoint makes a failed
+ * procedure undo its own writes, including a `pokeWorkspace` NOTIFY, while the
+ * other procedures in the batch keep theirs. It also recovers the transaction
+ * after a SQL error, which would otherwise abort every later statement in it.
+ *
+ * tRPC's `next()` does not throw for a failed procedure; it resolves to
+ * `{ ok: false }`. That result is returned unchanged, so tRPC still sends the
+ * error. Without a current transaction (e.g. outside a request), `next` runs
+ * as is.
+ */
+export declare function runInSavepoint<R extends {
+  ok: boolean;
+}>(next: () => Promise<R>): Promise<R>;
 export declare function wrapInTransaction<A extends Array<unknown>, R>(callback: (...args: A) => Promise<R>, db?: Knex): (...args: A) => Promise<R>;
 //#endregion
 //#region src/backend/trpc-assert.d.ts
