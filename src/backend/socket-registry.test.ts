@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
+import type { IncomingMessage } from "node:http";
 
-import type * as Koa from "koa";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WebSocket } from "ws";
 
 import { createSocketRegistry } from "./socket-registry";
 
@@ -13,18 +14,13 @@ class FakeSocket extends EventEmitter {
   close = vi.fn<(code?: number, reason?: string) => void>();
 }
 
-function makeCtx(socket: FakeSocket) {
-  let body: unknown;
-  return {
-    req: { headers: {}, socket: {}, connection: {} },
-    get body() {
-      return body;
-    },
-    set body(value: unknown) {
-      body = value;
-    },
-    ws: () => Promise.resolve(socket),
-  } as unknown as Koa.Context;
+/** The registry reads only the headers and socket address (for the client IP). */
+function makeReq(): IncomingMessage {
+  return { headers: {}, socket: {}, connection: {} } as unknown as IncomingMessage;
+}
+
+function asWebSocket(socket: FakeSocket): WebSocket {
+  return socket as unknown as WebSocket;
 }
 
 /**
@@ -36,11 +32,7 @@ async function connect(
   token: string,
 ): Promise<FakeSocket> {
   const socket = new FakeSocket();
-  const next = vi.fn(() => Promise.resolve());
-  const pending = registry.wsHandler(makeCtx(socket), next);
-  // `ctx.ws()` resolves on a microtask, so let the handler run far enough to
-  // register its message listener before we deliver the token.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  const pending = registry.wsHandler(asWebSocket(socket), makeReq());
   socket.emit("message", Buffer.from(token, "utf8"));
   await pending;
   return socket;
@@ -133,11 +125,7 @@ describe("createSocketRegistry", () => {
       authTimeoutMs: 1000,
     });
     const socket = new FakeSocket();
-    const pending = registryWithTimeout.wsHandler(
-      makeCtx(socket),
-      vi.fn(() => Promise.resolve()),
-    );
-    // Async variant flushes the `ctx.ws()` microtask before firing the timer.
+    const pending = registryWithTimeout.wsHandler(asWebSocket(socket), makeReq());
     await vi.advanceTimersByTimeAsync(1000);
     await pending;
     expect(socket.close).toHaveBeenCalledWith(1008, "Authentication timeout");

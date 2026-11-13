@@ -4,7 +4,6 @@ const neverBundle = [
   // Peer deps — must be single instance in the consuming app
   "@tanstack/react-query",
   "knex",
-  "koa",
   "narrow-types",
   "react",
   // Postgres LISTEN/NOTIFY client (+ its `pg` driver) — native pg bindings must

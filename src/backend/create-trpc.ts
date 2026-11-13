@@ -1,8 +1,16 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+import type { NodeHTTPCreateContextFnOptions } from "@trpc/server/adapters/node-http";
 import type { IpString } from "narrow-types";
 import { ipString } from "narrow-types";
 import { getClientIp } from "request-ip";
 import superjson from "superjson";
-import type { CreateTrpcKoaContextOptions } from "trpc-koa-adapter";
+
+/** What tRPC passes to `createContext` for each HTTP request. */
+export type CreateContextOptions = NodeHTTPCreateContextFnOptions<
+  IncomingMessage,
+  ServerResponse
+>;
 
 export type BaseContext<TUser> = {
   user: TUser | undefined;
@@ -21,7 +29,7 @@ export function buildContext<TUser extends { id: string | number }>(config: {
 }) {
   return async function createContext({
     req,
-  }: CreateTrpcKoaContextOptions): Promise<BaseContext<TUser>> {
+  }: CreateContextOptions): Promise<BaseContext<TUser>> {
     const r = ipString.safeParse(getClientIp(req));
     const clientIp = r.success ? r.data : undefined;
 

@@ -1,19 +1,9 @@
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const require_rolldown_runtime = require("./rolldown-runtime-VH7oDXx4.cjs");
+let node_http = require("node:http");
 let node_timers_promises = require("node:timers/promises");
-let _koa_cors = require("@koa/cors");
-_koa_cors = require_rolldown_runtime.__toESM(_koa_cors);
-let _koa_router = require("@koa/router");
-_koa_router = require_rolldown_runtime.__toESM(_koa_router);
-let koa = require("koa");
-koa = require_rolldown_runtime.__toESM(koa);
-let koa_easy_ws = require("koa-easy-ws");
-koa_easy_ws = require_rolldown_runtime.__toESM(koa_easy_ws);
-let koa_helmet = require("koa-helmet");
-koa_helmet = require_rolldown_runtime.__toESM(koa_helmet);
-let koa_logger = require("koa-logger");
-koa_logger = require_rolldown_runtime.__toESM(koa_logger);
-let trpc_koa_adapter = require("trpc-koa-adapter");
+let _trpc_server_adapters_node_http = require("@trpc/server/adapters/node-http");
+let ws = require("ws");
 let node_async_hooks = require("node:async_hooks");
 let knex = require("knex");
 knex = require_rolldown_runtime.__toESM(knex);
@@ -55,15 +45,6 @@ const getTrx = () => {
 	if (!trx) throw new Error("Transaction not found in AsyncLocalStorage");
 	return trx;
 };
-const dbMiddleware = async (_ctx, next) => {
-	if (!_globalDb) throw new Error("initDb() must be called before handling requests");
-	return _globalDb.transaction(async (trx) => dbAsyncLocalStorage.run({
-		db: _globalDb,
-		trx
-	}, async () => {
-		await next();
-	}));
-};
 function wrapInTransaction(callback, db) {
 	return async (...args) => {
 		const target = db ?? _globalDb;
@@ -76,34 +57,131 @@ function wrapInTransaction(callback, db) {
 }
 //#endregion
 //#region src/backend/create-app.ts
-const defaultHelmetConfig = { contentSecurityPolicy: { directives: {
-	defaultSrc: ["'self'"],
-	styleSrc: ["'self'", "https://fonts.googleapis.com"],
-	fontSrc: ["'self'", "https://fonts.gstatic.com"]
-} } };
-function createApp(options) {
-	const { corsConfig = {}, appApi, createContext, wsHandler, simulateLatency } = options;
-	const app = new koa.default();
-	app.use((0, koa_easy_ws.default)());
-	app.use((0, koa_helmet.default)(defaultHelmetConfig));
-	app.use((0, _koa_cors.default)(corsConfig));
-	app.use(dbMiddleware);
-	app.use((0, koa_logger.default)());
-	if (simulateLatency) app.use(async (_ctx, next) => {
-		await next();
-		await (0, node_timers_promises.setTimeout)(simulateLatency);
+/**
+* Sent on every HTTP response. These are the values `koa-helmet` (helmet 8)
+* produced with cedar's CSP directives; the API serves JSON, so most matter
+* only if a browser ever renders a response directly.
+*/
+const securityHeaders = {
+	"Content-Security-Policy": "default-src 'self';style-src 'self' https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;base-uri 'self';form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';upgrade-insecure-requests",
+	"Cross-Origin-Opener-Policy": "same-origin",
+	"Cross-Origin-Resource-Policy": "same-origin",
+	"Origin-Agent-Cluster": "?1",
+	"Referrer-Policy": "no-referrer",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+	"X-Content-Type-Options": "nosniff",
+	"X-DNS-Prefetch-Control": "off",
+	"X-Download-Options": "noopen",
+	"X-Frame-Options": "SAMEORIGIN",
+	"X-Permitted-Cross-Domain-Policies": "none",
+	"X-XSS-Protection": "0"
+};
+const corsAllowMethods = "GET,HEAD,PUT,POST,DELETE,PATCH";
+/**
+* Sets the CORS headers: any origin, no credentials. Answers a preflight
+* (`OPTIONS` with `Access-Control-Request-Method`) with 204 and returns true;
+* otherwise returns false and the request continues.
+*/
+function handleCors(req, res) {
+	res.setHeader("Vary", "Origin");
+	if (req.method !== "OPTIONS") {
+		res.setHeader("Access-Control-Allow-Origin", "*");
+		return false;
+	}
+	if (!req.headers["access-control-request-method"]) return false;
+	res.setHeader("Access-Control-Allow-Origin", "*");
+	res.setHeader("Access-Control-Allow-Methods", corsAllowMethods);
+	const requestedHeaders = req.headers["access-control-request-headers"];
+	if (requestedHeaders) res.setHeader("Access-Control-Allow-Headers", requestedHeaders);
+	res.statusCode = 204;
+	res.end();
+	return true;
+}
+function sendText(req, res, status, text) {
+	res.statusCode = status;
+	res.setHeader("Content-Type", "text/plain; charset=utf-8");
+	res.setHeader("Content-Length", Buffer.byteLength(text));
+	res.end(req.method === "HEAD" ? void 0 : text);
+}
+/** `/ping` and `/ws` accept GET and HEAD only, like a `@koa/router` GET route. */
+function handleGetOnlyRoute(req, res, onGet) {
+	if (req.method === "GET" || req.method === "HEAD") {
+		onGet();
+		return;
+	}
+	res.setHeader("Allow", "HEAD, GET");
+	if (req.method === "OPTIONS") {
+		res.statusCode = 200;
+		res.setHeader("Content-Length", 0);
+		res.end();
+		return;
+	}
+	sendText(req, res, 405, "Method Not Allowed");
+}
+function logRequest(req, res) {
+	const started = performance.now();
+	res.once("finish", () => {
+		const ms = Math.round(performance.now() - started);
+		console.log(`  --> ${req.method} ${req.url} ${res.statusCode} ${ms}ms`);
 	});
-	const router = new _koa_router.default();
-	router.get("/ping", async (ctx) => ctx.body = "pong");
-	if (wsHandler) router.get("/ws", wsHandler);
-	app.use(router.routes());
-	app.use(router.allowedMethods());
-	app.use((0, trpc_koa_adapter.createKoaMiddleware)({
-		router: appApi,
-		prefix: "/trpc",
-		createContext
-	}));
-	return app;
+}
+/**
+* The HTTP server both apps run: `/ping`, `/ws` (when `wsHandler` is given)
+* and tRPC under `/trpc`. Every request except a CORS preflight runs inside a
+* Knex transaction (see `db.ts`). Call `.listen(port)` on the result.
+*/
+function createApp(options) {
+	const { appApi, createContext, wsHandler, simulateLatency } = options;
+	async function route(req, res) {
+		logRequest(req, res);
+		if (simulateLatency) await (0, node_timers_promises.setTimeout)(simulateLatency);
+		const path = new URL(req.url ?? "/", "http://localhost").pathname;
+		if (path === "/ping") {
+			handleGetOnlyRoute(req, res, () => sendText(req, res, 200, "pong"));
+			return;
+		}
+		if (path === "/ws" && wsHandler) {
+			handleGetOnlyRoute(req, res, () => sendText(req, res, 426, "Upgrade Required"));
+			return;
+		}
+		if (path === "/trpc" || path.startsWith("/trpc/")) {
+			res.statusCode = 200;
+			await (0, _trpc_server_adapters_node_http.nodeHTTPRequestHandler)({
+				router: appApi,
+				createContext,
+				req,
+				res,
+				path: path.slice(6)
+			});
+			return;
+		}
+		sendText(req, res, 404, "Not Found");
+	}
+	const server = (0, node_http.createServer)((req, res) => {
+		for (const [name, value] of Object.entries(securityHeaders)) res.setHeader(name, value);
+		if (handleCors(req, res)) return;
+		wrapInTransaction(() => route(req, res))().catch((error) => {
+			console.error("Request failed", req.method, req.url, error);
+			if (!res.headersSent) sendText(req, res, 500, "Internal Server Error");
+			else res.end();
+		});
+	});
+	if (wsHandler) {
+		const wss = new ws.WebSocketServer({ noServer: true });
+		server.on("upgrade", (req, socket, head) => {
+			if (new URL(req.url ?? "/", "http://localhost").pathname !== "/ws") {
+				socket.destroy();
+				return;
+			}
+			wss.handleUpgrade(req, socket, head, (ws$1) => {
+				wsHandler(ws$1, req).catch((error) => {
+					console.error("WebSocket handler failed", error);
+					ws$1.close(1011, "Internal error");
+				});
+			});
+		});
+	}
+	return server;
 }
 //#endregion
 //#region src/backend/create-trpc.ts
@@ -229,10 +307,9 @@ function createSocketRegistry(options) {
 	function broadcast(payloadString) {
 		for (const socket of allSockets.values()) socket.send(payloadString);
 	}
-	const wsHandler = async (ctx, next) => {
-		const parsedIp = narrow_types.ipString.safeParse((0, request_ip.getClientIp)(ctx.req));
+	const wsHandler = async (socket, req) => {
+		const parsedIp = narrow_types.ipString.safeParse((0, request_ip.getClientIp)(req));
 		const clientIp = parsedIp.success ? parsedIp.data : void 0;
-		const socket = await ctx.ws();
 		const member = await new Promise((resolve) => {
 			const timer = setTimeout(() => {
 				socket.close(1008, "Authentication timeout");
@@ -248,11 +325,7 @@ function createSocketRegistry(options) {
 				resolve(void 0);
 			});
 		});
-		if (!member) {
-			ctx.body = "OK";
-			await next();
-			return;
-		}
+		if (!member) return;
 		const id = Symbol();
 		const topics = resolveSubscriptions(member);
 		socket.on("error", (err) => {
@@ -265,8 +338,6 @@ function createSocketRegistry(options) {
 			if (inputBuffer.toString("utf8") === "ping") socket.send("pong");
 		});
 		subscribe(id, socket, topics);
-		ctx.body = "OK";
-		await next();
 	};
 	return {
 		wsHandler,
@@ -368,7 +439,6 @@ exports.bridgeWorkspacePokesToSockets = bridgeWorkspacePokesToSockets;
 exports.buildContext = buildContext;
 exports.createApp = createApp;
 exports.createSocketRegistry = createSocketRegistry;
-exports.dbMiddleware = dbMiddleware;
 exports.establishDbListener = establishDbListener;
 exports.getDb = getDb;
 exports.getTrx = getTrx;

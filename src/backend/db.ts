@@ -2,7 +2,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Knex } from "knex";
 import knex from "knex";
-import type * as Koa from "koa";
 import { types } from "pg";
 import { parse, Range, serialize } from "postgres-range";
 import SuperJSON from "superjson";
@@ -70,17 +69,6 @@ export const getTrx = (): Knex.Transaction => {
   }
 
   return trx;
-};
-
-export const dbMiddleware: Koa.Middleware = async (_ctx, next) => {
-  if (!_globalDb) {
-    throw new Error("initDb() must be called before handling requests");
-  }
-  return _globalDb.transaction(async (trx) =>
-    dbAsyncLocalStorage.run({ db: _globalDb!, trx }, async () => {
-      await next();
-    }),
-  );
 };
 
 export function wrapInTransaction<A extends Array<unknown>, R>(

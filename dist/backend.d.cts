@@ -1,22 +1,14 @@
 import { IpString } from "narrow-types";
-import { Options, Options as CorsOptions } from "@koa/cors";
+import { IncomingMessage, Server, ServerResponse } from "node:http";
 import { AnyRouter, TRPCError, TRPCError as TRPCError$1, inferRouterInputs, inferRouterOutputs } from "@trpc/server";
-import * as Koa$1 from "koa";
-import Koa from "koa";
-import { CreateTrpcKoaContextOptions } from "trpc-koa-adapter";
+import { WebSocket } from "ws";
+import { NodeHTTPCreateContextFnOptions } from "@trpc/server/adapters/node-http";
 import superjson from "superjson";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Knex } from "knex";
-//#region src/backend/create-app.d.ts
-export declare function createApp(options: {
-  corsConfig?: Options;
-  appApi: AnyRouter;
-  createContext: (opts: CreateTrpcKoaContextOptions) => Promise<unknown>;
-  wsHandler?: Koa.Middleware;
-  simulateLatency?: number;
-}): Koa;
-//#endregion
 //#region src/backend/create-trpc.d.ts
+/** What tRPC passes to `createContext` for each HTTP request. */
+type CreateContextOptions = NodeHTTPCreateContextFnOptions<IncomingMessage, ServerResponse>;
 type BaseContext<TUser> = {
   user: TUser | undefined;
   clientIp: IpString | undefined;
@@ -30,7 +22,23 @@ export declare function buildContext<TUser extends {
   id: string | number;
 }>(config: {
   decodeSessionToken: (token: string, ip: IpString | undefined) => Promise<TUser | undefined>;
-}): ({ req }: CreateTrpcKoaContextOptions) => Promise<BaseContext<TUser>>;
+}): ({ req }: CreateContextOptions) => Promise<BaseContext<TUser>>;
+//#endregion
+//#region src/backend/create-app.d.ts
+/** Handles one authenticated-or-not WebSocket after the `/ws` upgrade. */
+type WsHandler = (socket: WebSocket, req: IncomingMessage) => Promise<void>;
+/**
+ * The HTTP server both apps run: `/ping`, `/ws` (when `wsHandler` is given)
+ * and tRPC under `/trpc`. Every request except a CORS preflight runs inside a
+ * Knex transaction (see `db.ts`). Call `.listen(port)` on the result.
+ */
+export declare function createApp(options: {
+  appApi: AnyRouter;
+  createContext: (opts: CreateContextOptions) => Promise<unknown>;
+  wsHandler?: WsHandler;
+  /** Development aid: wait this many ms before handling each request. */
+  simulateLatency?: number;
+}): Server;
 //#endregion
 //#region src/backend/db.d.ts
 type DbStore = {
@@ -43,7 +51,6 @@ declare global {
 export declare function initDb(config: Knex.Config): void;
 declare const getDb: () => Knex;
 export declare const getTrx: () => Knex.Transaction;
-export declare const dbMiddleware: Koa$1.Middleware;
 export declare function wrapInTransaction<A extends Array<unknown>, R>(callback: (...args: A) => Promise<R>, db?: Knex): (...args: A) => Promise<R>;
 //#endregion
 //#region src/backend/trpc-assert.d.ts
@@ -90,8 +97,9 @@ type Logger$1 = {
   error: (...args: unknown[]) => void;
 };
 interface SocketRegistry {
-  /** Koa middleware handling `GET /ws`: authenticate, subscribe, keep alive. */
-  wsHandler: Koa$1.Middleware;
+  /** Pass to `createApp` as `wsHandler`. Called with each socket upgraded on
+   * `/ws`: authenticates it, subscribes it, and answers keep-alive pings. */
+  wsHandler: (socket: WebSocket, req: IncomingMessage) => Promise<void>;
   /** Send to every socket subscribed to `topic`. A no-op with no subscribers —
    * that is normal for a poke to a topic nobody is currently watching. */
   sendToTopic(topic: string, payloadString: string): void;
@@ -165,5 +173,5 @@ export declare function bridgeWorkspacePokesToSockets(options: {
   debounceMs?: number;
 }): () => void;
 //#endregion
-export { type BaseContext, type CorsOptions, type DbListener, type SocketRegistry, TRPCError, type WorkspacePokePayload, getDb, type inferRouterInputs, type inferRouterOutputs, trpcAssert };
+export { type BaseContext, type CreateContextOptions, type DbListener, type SocketRegistry, TRPCError, type WorkspacePokePayload, type WsHandler, getDb, type inferRouterInputs, type inferRouterOutputs, trpcAssert };
 //# sourceMappingURL=backend.d.cts.map

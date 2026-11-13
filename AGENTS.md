@@ -1,6 +1,6 @@
 # cedar
 
-Cedar is the shared framework library used by Beatpoints and Moneybutler. It extracts common Koa/tRPC/DB/auth scaffolding so both apps can share it without duplication.
+Cedar is the shared framework library used by Beatpoints and Moneybutler. It extracts common HTTP server/tRPC/DB/auth scaffolding so both apps can share it without duplication.
 
 ## Build
 
@@ -12,7 +12,7 @@ Cedar is a TypeScript library with multiple named export paths, consumed via `ce
 
 **Export namespaces:**
 
-- **`cedar/backend`** (`src/backend/`) — Koa app factory (`createApp`), tRPC server setup (`buildContext`, `trpcConfig`), Knex DB helpers (`initDb`, `getDb`, `getTrx`, etc.), `trpcAssert`.
+- **`cedar/backend`** (`src/backend/`) — HTTP server factory (`createApp`), tRPC server setup (`buildContext`, `trpcConfig`), Knex DB helpers (`initDb`, `getDb`, `getTrx`, etc.), `trpcAssert`.
 - **`cedar/frontend`** (`src/frontend/`) — tRPC client factory (`createTrpcClients`), React core providers (`createCoreProviders`), `combineWrappers`, `useMutationWithDelta`, WebSocket provider.
 - **`cedar/auth`** (`src/auth/`) — JWT session token handler, login token handler.
 - **`cedar/kanel`** (`kanel/`) — Kanel configuration helpers for generating typed DB models.

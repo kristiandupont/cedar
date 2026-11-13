@@ -1,12 +1,12 @@
 # cedar
 
-Cedar is the shared framework library for Saas apps. It extracts common Koa/tRPC/DB/auth/kanel scaffolding so both apps share it without duplication.
+Cedar is the shared framework library for Saas apps. It extracts common HTTP server/tRPC/DB/auth/kanel scaffolding so both apps share it without duplication.
 
 ## Export paths
 
 | Import | Entry file | What it provides |
 |--------|-----------|-----------------|
-| `cedar/backend` | `src/backend/` | Koa app factory (`createApp`), tRPC context (`buildContext`, `trpcConfig`), Knex DB layer (`initDb`, `getTrx`, `dbMiddleware`, `wrapInTransaction`), `trpcAssert` |
+| `cedar/backend` | `src/backend/` | HTTP server factory (`createApp`, on `node:http` + `ws`), tRPC context (`buildContext`, `trpcConfig`), Knex DB layer (`initDb`, `getTrx`, `wrapInTransaction`), `trpcAssert` |
 | `cedar/frontend` | `src/frontend/` | tRPC client factory (`createTrpcClients`), React core providers (`createCoreProviders`), `combineWrappers`, WebSocket provider |
 | `cedar/auth` | `src/auth/` | JWT session token handler (`createSessionTokenHandler`), login token handler (`createLoginTokenHandler`) |
 | `cedar/testing` | `src/testing/` | Vitest helpers: `useTestDatabase` (clones template DB per test suite), `getKnexFor` |
@@ -45,7 +45,6 @@ Apps must keep these in their `tsconfig.json` `paths`:
 
 ```json
 "knex": ["./node_modules/knex"],
-"koa":  ["./node_modules/koa"],
 "react": ["./node_modules/react"],
 "@trpc/server": ["./node_modules/@trpc/server"],
 ...
@@ -61,6 +60,6 @@ This is required so that `cedar/testing`'s `beforeAll`/`afterAll` calls share th
 
 ## Peer dependencies
 
-Apps must provide: `@tanstack/react-query >=4`, `knex >=3`, `koa >=2`, `narrow-types >=1`, `react >=18`.
+Apps must provide: `@tanstack/react-query >=4`, `knex >=3`, `narrow-types >=1`, `pg >=8`, `react >=18`.
 
 Cedar does **not** declare `@trpc/*` as peer deps (they're internal to Cedar's build), but apps must have them in their own `dependencies` because tRPC requires a single instance.

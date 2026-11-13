@@ -1,12 +1,9 @@
-import type * as Koa from "koa";
+import type { IncomingMessage } from "node:http";
+
 import type { IpString } from "narrow-types";
 import { ipString } from "narrow-types";
 import { getClientIp } from "request-ip";
 import type { WebSocket } from "ws";
-
-// koa-easy-ws augments the request context with `ws()` only inside its own
-// middleware's context type, not globally, so name the shape we rely on here.
-type WsContext = Koa.Context & { ws: () => Promise<WebSocket> };
 
 type Logger = {
   info: (...args: unknown[]) => void;
@@ -16,8 +13,9 @@ type Logger = {
 const noopLogger: Logger = { info: () => {}, error: () => {} };
 
 export interface SocketRegistry {
-  /** Koa middleware handling `GET /ws`: authenticate, subscribe, keep alive. */
-  wsHandler: Koa.Middleware;
+  /** Pass to `createApp` as `wsHandler`. Called with each socket upgraded on
+   * `/ws`: authenticates it, subscribes it, and answers keep-alive pings. */
+  wsHandler: (socket: WebSocket, req: IncomingMessage) => Promise<void>;
   /** Send to every socket subscribed to `topic`. A no-op with no subscribers —
    * that is normal for a poke to a topic nobody is currently watching. */
   sendToTopic(topic: string, payloadString: string): void;
@@ -107,11 +105,9 @@ export function createSocketRegistry<TMember>(options: {
     for (const socket of allSockets.values()) socket.send(payloadString);
   }
 
-  const wsHandler: Koa.Middleware = async (ctx, next) => {
-    const parsedIp = ipString.safeParse(getClientIp(ctx.req));
+  const wsHandler = async (socket: WebSocket, req: IncomingMessage): Promise<void> => {
+    const parsedIp = ipString.safeParse(getClientIp(req));
     const clientIp = parsedIp.success ? parsedIp.data : undefined;
-
-    const socket = await (ctx as WsContext).ws();
 
     // The first message must be the session token, or we close.
     const member = await new Promise<TMember | undefined>((resolve) => {
@@ -132,11 +128,7 @@ export function createSocketRegistry<TMember>(options: {
       });
     });
 
-    if (!member) {
-      ctx.body = "OK";
-      await next();
-      return;
-    }
+    if (!member) return;
 
     const id = Symbol();
     const topics = resolveSubscriptions(member);
@@ -156,9 +148,6 @@ export function createSocketRegistry<TMember>(options: {
     });
 
     subscribe(id, socket, topics);
-
-    ctx.body = "OK";
-    await next();
   };
 
   return { wsHandler, sendToTopic, isTopicSubscribed, broadcast };
