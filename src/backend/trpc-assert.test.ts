@@ -41,6 +41,23 @@ describe("trpcAssert", () => {
     expect(caught?.code).toBe("UNAUTHORIZED");
   });
 
+  // Checked by `npm run typecheck`: each `@ts-expect-error` fails the build if
+  // the call compiles. The functions are never run.
+  it("rejects an error code in the message position at compile time", () => {
+    const codeAsMessage = () =>
+      // @ts-expect-error -- "NOT_FOUND" is an error code, not a message.
+      trpcAssert(false, "NOT_FOUND");
+    const unauthorizedAsMessage = () =>
+      // @ts-expect-error -- "UNAUTHORIZED" is an error code, not a message.
+      trpcAssert(false, "UNAUTHORIZED");
+    expect(codeAsMessage).toBeTypeOf("function");
+    expect(unauthorizedAsMessage).toBeTypeOf("function");
+
+    // A message typed as plain `string` is still accepted.
+    const dynamicMessage: string = "built at runtime";
+    expect(() => trpcAssert(true, dynamicMessage)).not.toThrow();
+  });
+
   it("narrows type after truthy assertion", () => {
     const value: string | undefined = "hello";
     trpcAssert(value, "should not throw");

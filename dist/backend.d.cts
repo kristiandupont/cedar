@@ -55,7 +55,16 @@ export declare function wrapInTransaction<A extends Array<unknown>, R>(callback:
 //#endregion
 //#region src/backend/trpc-assert.d.ts
 type TRPC_ERROR_CODE_KEY = ConstructorParameters<typeof TRPCError$1>[0]["code"];
-declare function trpcAssert(condition: unknown, msg: string, code?: TRPC_ERROR_CODE_KEY): asserts condition;
+/**
+ * Throws a `TRPCError` with `code` (default `INTERNAL_SERVER_ERROR`) when
+ * `condition` is falsy.
+ *
+ * The message comes before the code, and passing an error code as the message
+ * is a type error: `trpcAssert(row, "NOT_FOUND")` would otherwise compile and
+ * return a 500 whose message is "NOT_FOUND". Write
+ * `trpcAssert(row, "Row not found", "NOT_FOUND")`.
+ */
+declare function trpcAssert<M extends string>(condition: unknown, msg: M & (M extends TRPC_ERROR_CODE_KEY ? never : unknown), code?: TRPC_ERROR_CODE_KEY): asserts condition;
 //#endregion
 //#region src/backend/poke-workspace.d.ts
 /**

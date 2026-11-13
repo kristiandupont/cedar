@@ -209,6 +209,15 @@ function buildContext(config) {
 }
 //#endregion
 //#region src/backend/trpc-assert.ts
+/**
+* Throws a `TRPCError` with `code` (default `INTERNAL_SERVER_ERROR`) when
+* `condition` is falsy.
+*
+* The message comes before the code, and passing an error code as the message
+* is a type error: `trpcAssert(row, "NOT_FOUND")` would otherwise compile and
+* return a 500 whose message is "NOT_FOUND". Write
+* `trpcAssert(row, "Row not found", "NOT_FOUND")`.
+*/
 function trpcAssert(condition, msg, code = "INTERNAL_SERVER_ERROR") {
 	if (!condition) throw new _trpc_server.TRPCError({
 		code,
